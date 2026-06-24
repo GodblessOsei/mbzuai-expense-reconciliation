@@ -2,7 +2,7 @@
 
 ## Toolchain
 
-- Node 20 (run `nvm use`)
+- Node 24 (run `nvm use`)
 - PostgreSQL 16
 - Package manager: npm only (do not mix yarn/pnpm)
 - JSON responses use camelCase
