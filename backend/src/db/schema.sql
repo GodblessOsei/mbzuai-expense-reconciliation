@@ -43,3 +43,50 @@ CREATE TABLE receipt_files (
     upload_date TIMESTAMP
 );
 
+
+--  flags, budgets, refunds, audit_logs, and additional_spending 
+
+CREATE TABLE flags (
+    flag_id        SERIAL PRIMARY KEY,
+    transaction_id INTEGER NOT NULL REFERENCES transactions(transaction_id),
+    flag_type      VARCHAR(100) NOT NULL,
+    created_at     TIMESTAMP    NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE budgets (
+    budget_id      SERIAL PRIMARY KEY,
+    year           INTEGER       NOT NULL,
+    planned_amount NUMERIC(12,2) NOT NULL,
+    actual_amount  NUMERIC(12,2) NOT NULL DEFAULT 0
+);
+
+CREATE TABLE refunds (
+    refund_id      SERIAL PRIMARY KEY,
+    transaction_id INTEGER REFERENCES transactions(transaction_id),   -- nullable
+    refund_date    TIMESTAMP     NOT NULL DEFAULT NOW(),
+    vendor_name    VARCHAR(255)  NOT NULL,
+    refund_amount  NUMERIC(12,2) NOT NULL,
+    reason         TEXT          NOT NULL,
+    notes          TEXT
+);
+
+CREATE TABLE audit_logs (
+    log_id         SERIAL PRIMARY KEY,
+    transaction_id INTEGER REFERENCES transactions(transaction_id),   -- nullable
+    user_id        INTEGER      NOT NULL REFERENCES users(user_id),
+    action_type    VARCHAR(100) NOT NULL,
+    timestamp      TIMESTAMP    NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE additional_spending (
+    additional_spending_id SERIAL PRIMARY KEY,
+    date             DATE          NOT NULL,
+    vendor_name      VARCHAR(255)  NOT NULL,
+    department       VARCHAR(100)  NOT NULL,
+    category         VARCHAR(100)  NOT NULL,
+    amount_aed       NUMERIC(12,2) NOT NULL,
+    payment_method   VARCHAR(100)  NOT NULL,
+    reference_number VARCHAR(100),
+    notes            TEXT
+);
+
