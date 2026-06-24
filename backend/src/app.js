@@ -1,17 +1,12 @@
 const express = require("express");
 const cors = require("cors");
+const healthRoutes = require("./routes/health");
 
 const app = express();
 
-// allow the React frontend (Vite dev server) to call this backend
 app.use(cors({ origin: "http://localhost:5173" }));
-
-// let the server read JSON request bodies
 app.use(express.json());
 
-// health check — proves the frontend can reach the backend
-app.get("/api/health", (req, res) => {
-  res.json({ status: "ok" });
-});
+app.use("/api", healthRoutes); // everything in health.js lives under /api
 
 module.exports = app;
