@@ -2,6 +2,7 @@ const express = require("express");
 const app = express();
 
 const transactionRoutes = require("./routes/transactionRoutes");
+const ocrRoutes = require("./routes/ocrRoutes");
 
 app.use(express.json());
 
@@ -10,5 +11,6 @@ app.get("/", (req, res) => {
 });
 
 app.use("/api/transactions", transactionRoutes);
+app.use("/api/ocr", ocrRoutes);
 
 module.exports = app;
