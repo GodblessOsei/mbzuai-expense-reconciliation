@@ -1,27 +1,24 @@
 import { useState } from "react";
 import apiClient from "../api/client";
 
-export default function ReceiptUpload() {
-  const [files, setFiles] = useState([]); // files the user picked
-  const [status, setStatus] = useState(""); // status message
-  const [uploadedFiles, setUploadedFiles] = useState([]); // the uploaded receipt_file_id and file_path are here
+export default function ReceiptUpload({ onUploaded }) {
+  const [files, setFiles] = useState([]);
+  const [status, setStatus] = useState("");
 
   const handleUpload = async () => {
     if (files.length === 0) return;
 
-    // FormData is the container for sending files over the network
     const formData = new FormData();
-    files.forEach((file) => formData.append("files", file)); // "files" to match backend naming
+    files.forEach((file) => formData.append("files", file));
 
     try {
       setStatus("Uploading...");
       const res = await apiClient.post("/uploads", formData, {
         headers: { "Content-Type": "multipart/form-data" },
       });
-      setStatus(`Uploaded ${res.data.files.length} file(s) successfully.`);
-      setFiles([]); // clear the picker after success
-
-      setUploadedFiles(res.data.files);
+      setStatus(`Uploaded ${res.data.files.length} file(s).`);
+      setFiles([]);
+      if (onUploaded) onUploaded(res.data.files); // hand files up to parent
     } catch (err) {
       setStatus(
         "Upload failed: " + (err.response?.data?.message || err.message)
@@ -31,7 +28,7 @@ export default function ReceiptUpload() {
 
   return (
     <div>
-      <h2>Upload Receipts</h2>
+      <h2>Upload Receipt</h2>
       <input
         type="file"
         multiple
@@ -39,8 +36,8 @@ export default function ReceiptUpload() {
         onChange={(e) => setFiles(Array.from(e.target.files))}
       />
       <ul>
-        {files.map((file, i) => (
-          <li key={i}>{file.name}</li>
+        {files.map((f, i) => (
+          <li key={i}>{f.name}</li>
         ))}
       </ul>
       <button onClick={handleUpload} disabled={files.length === 0}>
