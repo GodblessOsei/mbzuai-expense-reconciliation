@@ -1,7 +1,11 @@
 import { useState, useEffect } from "react";
 import apiClient from "../api/client";
 
-export default function SubmissionForm({ extractedData, uploadedFiles }) {
+export default function SubmissionForm({
+  extractedData,
+  uploadedFiles,
+  onSubmitted,
+}) {
   const [cardholders, setCardholders] = useState([]);
   const [status, setStatus] = useState("");
 
@@ -119,6 +123,7 @@ export default function SubmissionForm({ extractedData, uploadedFiles }) {
       setStatus(
         `Transaction created (ID: ${res.data.confirmation.transaction_id})`
       );
+      if (onSubmitted) onSubmitted(res.data.confirmation);
     } catch (err) {
       setStatus(
         "Submit failed: " + (err.response?.data?.message || err.message)

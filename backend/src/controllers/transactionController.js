@@ -58,6 +58,30 @@ const createTransaction = async (req, res) => {
       }
     }
 
+    // --- assign reconciliation period by purchase date ---
+    const periodResult = await pool.query(
+      `SELECT reconciliation_period_id, end_date
+        FROM reconciliation_periods
+        WHERE $1 BETWEEN start_date AND end_date
+        LIMIT 1`,
+      [purchase_date]
+    );
+
+    let assignedPeriodId = null;
+    let isLate = false;
+
+    if (periodResult.rows.length > 0) {
+      assignedPeriodId = periodResult.rows[0].reconciliation_period_id;
+      // --- late submission check: more than 3 days after purchase ---
+      const purchaseDateObj = new Date(purchase_date);
+      const today = new Date();
+      const daysSincePurchase =
+        (today - purchaseDateObj) / (1000 * 60 * 60 * 24);
+
+      const isLate = daysSincePurchase > 3;
+    }
+    // --- end period assignment ---
+
     // --- create the transaction in db ---
     const result = await pool.query(
       `INSERT INTO transactions (
@@ -90,7 +114,7 @@ const createTransaction = async (req, res) => {
         amount_aed,
         original_currency,
         payment_method,
-        reconciliation_period_id || null,
+        assignedPeriodId,
         notes,
       ]
     );
@@ -116,6 +140,11 @@ const createTransaction = async (req, res) => {
     // card digits acknowledged as not on receipt
     if (card_digits_not_shown) {
       flagsToCreate.push("missing_card_digits");
+    }
+
+    // Late submission flag
+    if (isLate) {
+      flagsToCreate.push("late_submission");
     }
 
     for (const flagType of flagsToCreate) {
