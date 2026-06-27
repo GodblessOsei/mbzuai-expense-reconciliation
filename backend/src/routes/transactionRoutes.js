@@ -3,6 +3,6 @@ const router = express.Router();
 
 const { createTransaction } = require("../controllers/transactionController");
 
-router.post("/", createTransaction);
+router.post("/final-submit", createTransaction);
 
 module.exports = router;
