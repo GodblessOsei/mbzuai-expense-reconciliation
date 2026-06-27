@@ -7,6 +7,7 @@ CREATE TABLE cardholders (
     cardholder_id SERIAL PRIMARY KEY,
     -- since for now every user has only one card we could use UNIQUE REFERENCES 
     user_id INTEGER REFERENCES users(user_id),
+    cardholder_name TEXT,
     last_four_digits VARCHAR(4)
 );
 
@@ -50,6 +51,7 @@ CREATE TABLE flags (
     flag_id        SERIAL PRIMARY KEY,
     transaction_id INTEGER NOT NULL REFERENCES transactions(transaction_id),
     flag_type      VARCHAR(100) NOT NULL,
+    resolved BOOLEAN DEFAULT FALSE
     created_at     TIMESTAMP    NOT NULL DEFAULT NOW()
 );
 

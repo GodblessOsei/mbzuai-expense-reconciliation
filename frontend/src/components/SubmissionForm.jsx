@@ -13,10 +13,15 @@ export default function SubmissionForm({ extractedData, uploadedFiles }) {
     amountAed: "",
     currency: "AED",
     cardLastFour: "",
+    paymentMethod: "RLA prepaid card",
     category: "",
+    customCategory: "",
     department: "Residential Life",
+    customDepartment: "",
     notes: "",
   });
+
+  const [cardDigitsNotShown, setCardDigitsNotShown] = useState(false); // acknowledgment
 
   // fetch the cardholders for the dropdown (runs once on mount)
   useEffect(() => {
@@ -48,16 +53,58 @@ export default function SubmissionForm({ extractedData, uploadedFiles }) {
     setForm((prev) => ({ ...prev, [name]: value }));
   };
 
+  const getBlockingErrors = () => {
+    const errors = [];
+
+    if (!form.cardholderId) errors.push("Select a cardholder");
+    if (!form.vendorName.trim()) errors.push("Vendor name is required");
+    if (!form.purchaseDate) errors.push("Purchase date is required");
+    if (!form.invoiceNumber.trim()) errors.push("Invoice number is required");
+    if (!form.amountAed.trim()) errors.push("Amount is required");
+    if (!form.currency.trim()) errors.push("Currency is required");
+    if (form.currency.trim().toUpperCase() !== "AED")
+      errors.push("Currency must be AED");
+
+    // card digits: blocking UNLESS user acknowledged they're not on the receipt
+    if (!form.cardLastFour.trim() && !cardDigitsNotShown) {
+      errors.push(
+        "Card last-four is required (or tick 'not shown on receipt')"
+      );
+    }
+
+    if (
+      form.department === "Other department" &&
+      !form.customDepartment.trim()
+    ) {
+      errors.push("Please specify the department");
+    }
+
+    // category must be selected
+    if (!form.category) errors.push("Select a category");
+
+    // if "Other", the description is required
+    if (form.category === "Other" && !form.customCategory.trim()) {
+      errors.push("Please describe the category");
+    }
+
+    return errors;
+  };
+
+  const blockingErrors = getBlockingErrors();
+  const canSubmit = blockingErrors.length === 0;
+
   const handleSubmit = async () => {
-    if (!form.cardholderId) {
-      setStatus("Please select a cardholder.");
+    if (!canSubmit) {
+      setStatus("Resolve the blocking issues first.");
       return;
     }
     try {
       setStatus("Submitting...");
-      const res = await apiClient.post("/transactions", {
-        user_id: 1, // hardcoded until auth exists
+      const res = await apiClient.post("/transactions/final-submit", {
+        user_id: 1,
         cardholder_id: form.cardholderId,
+        card_last_four: form.cardLastFour,
+        card_digits_not_shown: cardDigitsNotShown,
         vendor_name: form.vendorName,
         purchase_date: form.purchaseDate,
         invoice_number: form.invoiceNumber,
@@ -65,11 +112,12 @@ export default function SubmissionForm({ extractedData, uploadedFiles }) {
         department: form.department,
         amount_aed: form.amountAed,
         original_currency: form.currency,
-        payment_method: "RLA prepaid card",
+        payment_method: form.paymentMethod,
         notes: form.notes,
+        receipt_file_ids: uploadedFiles.map((f) => f.receipt_file_id),
       });
       setStatus(
-        `Transaction created (ID: ${res.data.transaction.transaction_id})`
+        `Transaction created (ID: ${res.data.confirmation.transaction_id})`
       );
     } catch (err) {
       setStatus(
@@ -91,7 +139,7 @@ export default function SubmissionForm({ extractedData, uploadedFiles }) {
         <option value="">-- Select cardholder --</option>
         {cardholders.map((c) => (
           <option key={c.cardholder_id} value={c.cardholder_id}>
-            Card ending {c.last_four_digits}
+            {c.cardholder_name}
           </option>
         ))}
       </select>
@@ -124,6 +172,30 @@ export default function SubmissionForm({ extractedData, uploadedFiles }) {
       <label>Currency</label>
       <input name="currency" value={form.currency} onChange={handleChange} />
 
+      <label>Payment Method</label>
+      <select
+        name="paymentMethod"
+        value={form.paymentMethod}
+        onChange={handleChange}
+      >
+        <option value="RLA prepaid card">RLA prepaid card</option>
+        <option value="Department card">Department card</option>
+        <option value="ResLife account">ResLife account</option>
+        <option value="Personal payment awaiting reimbursement">
+          Personal payment awaiting reimbursement
+        </option>
+        <option value="Other">Other</option>
+      </select>
+
+      <label>
+        <input
+          type="checkbox"
+          checked={cardDigitsNotShown}
+          onChange={(e) => setCardDigitsNotShown(e.target.checked)}
+        />
+        Card digits not shown on receipt
+      </label>
+
       <label>Card Last Four</label>
       <input
         name="cardLastFour"
@@ -132,18 +204,58 @@ export default function SubmissionForm({ extractedData, uploadedFiles }) {
       />
 
       <label>Category</label>
-      <input name="category" value={form.category} onChange={handleChange} />
+      <select name="category" value={form.category} onChange={handleChange}>
+        <option value="">-- Select category --</option>
+        <option value="Event supplies">Event supplies</option>
+        <option value="Food and catering">Food and catering</option>
+        <option value="Stationery">Stationery</option>
+        <option value="Equipment">Equipment</option>
+        <option value="Subscription">Subscription</option>
+        <option value="Per diem expense">Per diem expense</option>
+        <option value="Other">Other</option>
+      </select>
+
+      {form.category === "Other" && (
+        <>
+          <label>Describe Category</label>
+          <input
+            name="customCategory"
+            value={form.customCategory}
+            onChange={handleChange}
+          />
+        </>
+      )}
 
       <label>Department</label>
-      <input
-        name="department"
-        value={form.department}
-        onChange={handleChange}
-      />
+      <select name="department" value={form.department} onChange={handleChange}>
+        <option value="Residential Life">Residential Life</option>
+        <option value="Student Life">Student Life</option>
+        <option value="Other department">Other department</option>
+      </select>
+
+      {form.department === "Other department" && (
+        <>
+          <label>Specify Department</label>
+          <input
+            name="customDepartment"
+            value={form.customDepartment}
+            onChange={handleChange}
+          />
+        </>
+      )}
 
       <label>Notes</label>
       <textarea name="notes" value={form.notes} onChange={handleChange} />
-
+      {blockingErrors.length > 0 && (
+        <div style={{ color: "crimson" }}>
+          <p>Resolve these before submitting:</p>
+          <ul>
+            {blockingErrors.map((e, i) => (
+              <li key={i}>{e}</li>
+            ))}
+          </ul>
+        </div>
+      )}
       <button onClick={handleSubmit}>Submit</button>
       <p>{status}</p>
     </div>
