@@ -180,6 +180,27 @@ const createTransaction = async (req, res) => {
   }
 };
 
+const getTransactionsByCardholder = async (req, res) => {
+  try {
+    const { cardholderId } = req.params; //cardholderId for url parameter
+
+    const result = await pool.query(
+      `SELECT * FROM transactions
+       WHERE cardholder_id = $1
+       ORDER BY submission_date DESC`,
+      [cardholderId]
+    );
+
+    return res.status(200).json({ success: true, transactions: result.rows });
+  } catch (error) {
+    console.error(error.message);
+    return res
+      .status(500)
+      .json({ success: false, message: "Failed to fetch transactions" });
+  }
+};
+
 module.exports = {
   createTransaction,
+  getTransactionsByCardholder,
 };
