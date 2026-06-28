@@ -19,7 +19,7 @@ const createTransaction = async (req, res) => {
       card_digits_not_shown, //manager flag
       receipt_file_ids, // for linking uploaded files
     } = req.body;
-    // --- required-field validation ---
+    // required-field validation
     if (
       !user_id ||
       !cardholder_id ||
@@ -35,7 +35,7 @@ const createTransaction = async (req, res) => {
       });
     }
 
-    // --- card-digit match check ---
+    // card-digit match check
     if (card_last_four) {
       const cardholderResult = await pool.query(
         `SELECT last_four_digits FROM cardholders WHERE cardholder_id = $1`,
@@ -121,7 +121,7 @@ const createTransaction = async (req, res) => {
 
     const transaction = result.rows[0];
 
-    // link uploaded receipt files to this transaction ---
+    // link uploaded receipt files to this transaction
     if (receipt_file_ids && receipt_file_ids.length > 0) {
       await pool.query(
         `UPDATE receipt_files SET transaction_id = $1 WHERE receipt_file_id = ANY($2)`,
@@ -129,7 +129,7 @@ const createTransaction = async (req, res) => {
       );
     }
 
-    // --- write management flags ---
+    //  write management flags
     const flagsToCreate = [];
 
     // payment method not the prepaid card
@@ -155,7 +155,15 @@ const createTransaction = async (req, res) => {
       );
     }
 
-    // --- confirmation response ---
+    // set transaction status based on whether any flags were raised
+    const status = flagsToCreate.length > 0 ? "flagged" : "submitted";
+
+    await pool.query(
+      `UPDATE transactions SET status = $1 WHERE transaction_id = $2`,
+      [status, transaction.transaction_id]
+    );
+
+    // confirmation response
     return res.status(201).json({
       success: true,
       message: "Submission successful",

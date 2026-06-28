@@ -21,6 +21,7 @@ CREATE TABLE transactions (
     transaction_id SERIAL PRIMARY KEY,
     user_id INTEGER REFERENCES users(user_id),
     cardholder_id INTEGER REFERENCES cardholders(cardholder_id),
+    status VARCHAR(20) DEFAULT 'submitted',
     submission_date TIMESTAMP,
     purchase_date TIMESTAMP,
     vendor_name TEXT,
@@ -32,6 +33,7 @@ CREATE TABLE transactions (
     payment_method TEXT,
     reconciliation_period_id INTEGER REFERENCES reconciliation_periods(reconciliation_period_id),
     notes TEXT 
+    
 );
 
 CREATE TABLE receipt_files (
