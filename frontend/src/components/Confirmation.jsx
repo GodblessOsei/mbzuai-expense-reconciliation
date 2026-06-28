@@ -1,4 +1,8 @@
-export default function Confirmation({ confirmation, onNewSubmission }) {
+export default function Confirmation({
+  confirmation,
+  onNewSubmission,
+  onHome,
+}) {
   return (
     <div
       style={{ border: "1px solid green", padding: "16px", maxWidth: "480px" }}
@@ -24,7 +28,8 @@ export default function Confirmation({ confirmation, onNewSubmission }) {
         <strong>Reconciliation period:</strong>{" "}
         {confirmation.reconciliation_period_id ?? "Unassigned"}
       </p>
-      <button onClick={onNewSubmission}>New Submission</button>
+      <button onClick={onHome}>Home</button>
+      <button onClick={onNewSubmission}>Add Transaction</button>
     </div>
   );
 }

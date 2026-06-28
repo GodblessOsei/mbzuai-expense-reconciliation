@@ -1,16 +1,17 @@
 import { useState, useEffect } from "react";
 import apiClient from "../api/client";
+import { useAuth } from "../context/AuthContext";
 
 export default function SubmissionForm({
   extractedData,
   uploadedFiles,
   onSubmitted,
+  onBack,
 }) {
-  const [cardholders, setCardholders] = useState([]);
   const [status, setStatus] = useState("");
+  const { cardholder } = useAuth();
 
   const [form, setForm] = useState({
-    cardholderId: "",
     vendorName: "",
     purchaseDate: "",
     invoiceNumber: "",
@@ -26,16 +27,6 @@ export default function SubmissionForm({
   });
 
   const [cardDigitsNotShown, setCardDigitsNotShown] = useState(false); // acknowledgment
-
-  // fetch the cardholders for the dropdown (runs once on mount)
-  useEffect(() => {
-    apiClient
-      .get("/cardholders")
-      .then((res) => setCardholders(res.data.cardholders))
-      .catch((err) =>
-        console.error("Failed to load cardholders:", err.message)
-      );
-  }, []);
 
   // when OCR data arrives, pre-fill the form
   useEffect(() => {
@@ -60,7 +51,6 @@ export default function SubmissionForm({
   const getBlockingErrors = () => {
     const errors = [];
 
-    if (!form.cardholderId) errors.push("Select a cardholder");
     if (!form.vendorName.trim()) errors.push("Vendor name is required");
     if (!form.purchaseDate) errors.push("Purchase date is required");
     if (!form.invoiceNumber.trim()) errors.push("Invoice number is required");
@@ -106,7 +96,7 @@ export default function SubmissionForm({
       setStatus("Submitting...");
       const res = await apiClient.post("/transactions/final-submit", {
         user_id: 1,
-        cardholder_id: form.cardholderId,
+        cardholder_id: cardholder.cardholder_id,
         card_last_four: form.cardLastFour,
         card_digits_not_shown: cardDigitsNotShown,
         vendor_name: form.vendorName,
@@ -135,19 +125,9 @@ export default function SubmissionForm({
     <div>
       <h2>Review & Submit</h2>
 
-      <label>Cardholder</label>
-      <select
-        name="cardholderId"
-        value={form.cardholderId}
-        onChange={handleChange}
-      >
-        <option value="">-- Select cardholder --</option>
-        {cardholders.map((c) => (
-          <option key={c.cardholder_id} value={c.cardholder_id}>
-            {c.cardholder_name}
-          </option>
-        ))}
-      </select>
+      <p>
+        Submitting as: <strong>{cardholder.cardholder_name}</strong>
+      </p>
 
       <label>Vendor</label>
       <input
@@ -261,6 +241,7 @@ export default function SubmissionForm({
           </ul>
         </div>
       )}
+      {onBack && <button onClick={onBack}> Back</button>}
       <button onClick={handleSubmit}>Submit</button>
       <p>{status}</p>
     </div>
