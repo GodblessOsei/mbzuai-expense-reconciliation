@@ -7,7 +7,7 @@ export default {
         mbzuai: {
           navy: "#1B3A6B",
           gold: "#E4C988",
-          sand: "#ece0e0",
+          sand: "#fffcfc",
         },
       },
     },

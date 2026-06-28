@@ -75,7 +75,7 @@ const generateCombinedReceiptPdf = async ({
         height: image.height,
       });
     } else {
-      throw new Error(`Unsupported file type: $(ext)`);
+      throw new Error(`Unsupported file type: ${ext}`);
     }
   }
   const formattedDate = formatDateForFilename(purchaseDate);
