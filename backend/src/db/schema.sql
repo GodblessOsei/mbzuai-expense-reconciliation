@@ -33,6 +33,7 @@ CREATE TABLE transactions (
     payment_method TEXT,
     reconciliation_period_id INTEGER REFERENCES reconciliation_periods(reconciliation_period_id),
     notes TEXT 
+    pdf_path TEXT
     
 );
 
