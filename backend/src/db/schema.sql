@@ -7,6 +7,7 @@ CREATE TABLE cardholders (
     cardholder_id SERIAL PRIMARY KEY,
     -- since for now every user has only one card we could use UNIQUE REFERENCES 
     user_id INTEGER REFERENCES users(user_id),
+    cardholder_name TEXT,
     last_four_digits VARCHAR(4)
 );
 
@@ -20,6 +21,7 @@ CREATE TABLE transactions (
     transaction_id SERIAL PRIMARY KEY,
     user_id INTEGER REFERENCES users(user_id),
     cardholder_id INTEGER REFERENCES cardholders(cardholder_id),
+    status VARCHAR(20) DEFAULT 'submitted',
     submission_date TIMESTAMP,
     purchase_date TIMESTAMP,
     vendor_name TEXT,
@@ -31,6 +33,7 @@ CREATE TABLE transactions (
     payment_method TEXT,
     reconciliation_period_id INTEGER REFERENCES reconciliation_periods(reconciliation_period_id),
     notes TEXT 
+    
 );
 
 CREATE TABLE receipt_files (
@@ -50,6 +53,7 @@ CREATE TABLE flags (
     flag_id        SERIAL PRIMARY KEY,
     transaction_id INTEGER NOT NULL REFERENCES transactions(transaction_id),
     flag_type      VARCHAR(100) NOT NULL,
+    resolved BOOLEAN DEFAULT FALSE
     created_at     TIMESTAMP    NOT NULL DEFAULT NOW()
 );
 
