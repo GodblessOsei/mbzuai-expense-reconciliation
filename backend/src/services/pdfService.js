@@ -1,7 +1,7 @@
 const fs = require("fs");
 const path = require("path");
 const { PDFDocument } = require("pdf-lib");
-
+const { fileTypeFromBuffer } = require("file-type");
 const uploadDir = path.join(__dirname, "..", "..", "uploads");
 
 const formatDateForFilename = (dateString) => {
@@ -53,9 +53,14 @@ const generateCombinedReceiptPdf = async ({
 
     for (const filePath of filePaths) {
         const fileBytes = fs.readFileSync(filePath);
-        const ext = path.extname(filePath).toLowerCase();
+        const detectedType = await fileTypeFromBuffer(fileBytes);
 
-        if (ext === ".pdf") {
+        if (!detectedType) {
+            throw new Error("Couldn't determine file type from content");
+        }
+        const mime = detectedType.mine;
+
+        if (mime === "application/pdf") {
             const sourcePdf = await PDFDocument.load(fileBytes);
             const copiedPages = await pdfDoc.copyPages(
                 sourcePdf,
@@ -63,8 +68,8 @@ const generateCombinedReceiptPdf = async ({
             );
             copiedPages.forEach((page) => pdfDoc.addPage(page));
         }
-        else if (ext === ".jpg" || ext === ".jpeg" || ext === ".png") {
-            const image = ext === ".png" ? await pdfDoc.embedPng(fileBytes) : await pdfDoc.embedJpg(fileBytes);
+        else if (mime === "image/jpeg" || mime === "image/png") {
+            const image = mime === "image/png" ? await pdfDoc.embedPng(fileBytes) : await pdfDoc.embedJpg(fileBytes);
             const page = pdfDoc.addPage([image.width, image.height]);
             page.drawImage(image , {
                 x: 0,
@@ -74,7 +79,7 @@ const generateCombinedReceiptPdf = async ({
             });
         }
         else {
-            throw new Error(`Unsupported file type: $(ext)`);
+            throw new Error(`Unsupported file type: ${mime}`);
         } 
     }
     const formattedDate = formatDateForFilename(purchaseDate);
@@ -82,7 +87,7 @@ const generateCombinedReceiptPdf = async ({
     const formattedAmount = Number(amountAed).toFixed(2);
     const safeCardHolder = sanitizeFilenamePart(cardholderName);
 
-    const filename = `${formattedDate}_${safeVendor}_${safeAmount}AED_${safeCardHolder}.pdf`;
+    const filename = `${formattedDate}_${safeVendor}_${formattedAmount}AED_${safeCardHolder}.pdf`;
     const outputPath = getUniqueFilePath(path.join(uploadDir, filename));
 
     const pdfBytes = await pdfDoc.save();
