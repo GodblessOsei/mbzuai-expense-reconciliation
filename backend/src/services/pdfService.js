@@ -1,7 +1,7 @@
 const fs = require("fs");
 const path = require("path");
 const { PDFDocument } = require("pdf-lib");
-
+const { fileTypeFromBuffer } = require("file-type");
 const uploadDir = path.join(__dirname, "..", "..", "uploads");
 
 const formatDateForFilename = (dateString) => {
