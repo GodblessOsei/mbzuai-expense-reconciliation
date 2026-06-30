@@ -5,6 +5,7 @@ import Button from "./Button";
 export default function ReceiptUpload({ onUploaded }) {
   const [files, setFiles] = useState([]);
   const [status, setStatus] = useState("");
+  const [previewFile, setPreviewFile] = useState(null);
 
   const handleUpload = async () => {
     if (files.length === 0) return;
@@ -50,8 +51,19 @@ export default function ReceiptUpload({ onUploaded }) {
       {files.length > 0 && (
         <ul className="mt-3 space-y-1 text-sm text-mbzuai-navy/70">
           {files.map((f, i) => (
-            <li key={i} className="truncate">
-              • {f.name}
+            <li
+              key={i}
+              className="flex items-center justify-between py-1"
+            >
+              <span className="truncate">• {f.name}</span>
+
+              <button
+                type="button"
+                onClick={() => setPreviewFile(f)}
+                className="text-sm text-mbzuai-gold underline"
+              >
+                Preview
+              </button>
             </li>
           ))}
         </ul>
@@ -63,6 +75,42 @@ export default function ReceiptUpload({ onUploaded }) {
         </Button>
       </div>
       {status && <p className="mt-2 text-sm text-mbzuai-navy/60">{status}</p>}
+
+      {previewFile && (
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+        <div className="bg-white rounded-3xl shadow-2xl p-4 w-[90vw] max-w-3xl max-h-[90vh]">
+          <div className="flex justify-between items-center mb-3">
+            <p className="font-medium text-mbzuai-navy">{previewFile.name}</p>
+
+            <button
+              type="button"
+              onClick={() => setPreviewFile(null)}
+              className="text-sm text-mbzuai-navy/60 hover:text-mbzuai-navy"
+            >
+              Close
+            </button>
+          </div>
+
+          {previewFile.type.startsWith("image/") ? (
+            <img
+              src={URL.createObjectURL(previewFile)}
+              alt={previewFile.name}
+              className="max-h-[75vh] w-full object-contain rounded-lg"
+            />
+          ) : previewFile.type === "application/pdf" ? (
+            <iframe
+              src={URL.createObjectURL(previewFile)}
+              title={previewFile.name}
+              className="w-full h-[75vh] rounded-lg border"
+            />
+          ) : (
+            <p className="text-sm text-mbzuai-navy/60">
+              Preview is not available for this file type.
+            </p>
+          )}
+        </div>
+      </div>
+    )}
     </div>
   );
 }
