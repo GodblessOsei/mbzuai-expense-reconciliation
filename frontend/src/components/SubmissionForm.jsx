@@ -6,6 +6,8 @@ import Button from "./Button";
 export default function SubmissionForm({
   extractedData,
   uploadedFiles,
+  ocrFlags = [],
+  reviewFlags = [],
   onSubmitted,
   onBack,
 }) {
@@ -85,7 +87,7 @@ export default function SubmissionForm({
     return errors;
   };
 
-  const blockingErrors = getBlockingErrors();
+  const blockingErrors = [...getBlockingErrors(), ...ocrFlags];
   const canSubmit = blockingErrors.length === 0;
 
   const handleSubmit = async () => {
