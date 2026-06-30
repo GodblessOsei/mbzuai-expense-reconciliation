@@ -1,4 +1,8 @@
 const pool = require("../db/pool");
+const path = require("path");
+const fs = require("fs");
+
+const { generateCombinedReceiptPdf } = require("../services/pdfService");
 
 const createTransaction = async (req, res) => {
   try {
@@ -188,6 +192,23 @@ const createTransaction = async (req, res) => {
   }
 };
 
+const getAllTransactions = async (req, res) => {
+  try {
+    const result = await pool.query(
+      `SELECT t.*, c.cardholder_name
+       FROM transactions t
+       LEFT JOIN cardholders c ON c.cardholder_id = t.cardholder_id
+       ORDER BY t.submission_date DESC`
+    );
+    return res.status(200).json({ success: true, transactions: result.rows });
+  } catch (error) {
+    console.error(error.message);
+    return res
+      .status(500)
+      .json({ success: false, message: "Failed to fetch transactions" });
+  }
+};
+
 const getTransactionsByCardholder = async (req, res) => {
   try {
     const { cardholderId } = req.params; //cardholderId for url parameter
@@ -208,7 +229,114 @@ const getTransactionsByCardholder = async (req, res) => {
   }
 };
 
+const generateTransactionPdf = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    // get the transaction_id w/ cardholder name for the filename
+    const txResult = await pool.query(
+      `SELECT t.*, c.cardholder_name
+       FROM transactions t
+       LEFT JOIN cardholders c ON c.cardholder_id = t.cardholder_id
+       WHERE t.transaction_id = $1`,
+      [id]
+    );
+    if (txResult.rows.length === 0) {
+      return res
+        .status(404)
+        .json({ success: false, message: "Transaction not found" });
+    }
+    const tx = txResult.rows[0];
+
+    //get the transaction's receipt files
+    const filesResult = await pool.query(
+      `SELECT file_path FROM receipt_files WHERE transaction_id = $1`,
+      [id]
+    );
+    if (filesResult.rows.length === 0) {
+      return res
+        .status(400)
+        .json({ success: false, message: "No receipt files to combine" });
+    }
+    const filePaths = filesResult.rows.map((r) => r.file_path);
+
+    console.log("generator is:", typeof generateCombinedReceiptPdf);
+    console.log("calling generator with:", {
+      filePaths,
+      purchaseDate: tx.purchase_date,
+      vendorName: tx.vendor_name,
+      amountAed: tx.amount_aed,
+      cardholderName: tx.cardholder_name,
+    });
+    // call combined pdf generator from the service
+    const { filePath } = await generateCombinedReceiptPdf({
+      filePaths,
+      purchaseDate: tx.purchase_date,
+      vendorName: tx.vendor_name,
+      amountAed: tx.amount_aed,
+      cardholderName: tx.cardholder_name,
+    });
+
+    console.log("generator returned:", filePath);
+
+    // store the path on the transaction
+    await pool.query(
+      `UPDATE transactions SET pdf_path = $1 WHERE transaction_id = $2`,
+      [filePath, id]
+    );
+
+    return res
+      .status(200)
+      .json({ success: true, message: "PDF generated", pdf_path: filePath });
+  } catch (error) {
+    console.error("PDF generation error:", error.message);
+    console.error("PDF generation error (full):", error);
+    console.error("Stack:", error?.stack);
+    console.error("Type:", typeof error, error);
+    return res
+      .status(500)
+      .json({ success: false, message: "Failed to generate PDF" });
+  }
+};
+
+const getTransactionPdf = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const download = req.query.download === "true"; // ?download=true forces download
+
+    const result = await pool.query(
+      `SELECT pdf_path FROM transactions WHERE transaction_id = $1`,
+      [id]
+    );
+    if (result.rows.length === 0 || !result.rows[0].pdf_path) {
+      return res
+        .status(404)
+        .json({ success: false, message: "No PDF for this transaction" });
+    }
+
+    const pdfPath = result.rows[0].pdf_path;
+    if (!fs.existsSync(pdfPath)) {
+      return res
+        .status(404)
+        .json({ success: false, message: "PDF file missing on disk" });
+    }
+
+    if (download) {
+      return res.download(pdfPath); // forces download with original filename
+    }
+    return res.sendFile(pdfPath); // opens/streams for viewing
+  } catch (error) {
+    console.error(error.message);
+    return res
+      .status(500)
+      .json({ success: false, message: "Failed to retrieve PDF" });
+  }
+};
+
 module.exports = {
   createTransaction,
   getTransactionsByCardholder,
+  getAllTransactions,
+  generateTransactionPdf,
+  getTransactionPdf,
 };
