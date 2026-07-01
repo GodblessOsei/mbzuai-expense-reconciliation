@@ -26,6 +26,9 @@ export default function SubmissionForm({
     customCategory: "",
     department: "Residential Life",
     customDepartment: "",
+    isSplitPayment: false,
+    totalPaymentParts: "",
+    overallOrderTotal: "",
     notes: "",
   });
 
@@ -47,8 +50,10 @@ export default function SubmissionForm({
   }, [extractedData]);
 
   const handleChange = (e) => {
-    const { name, value } = e.target;
-    setForm((prev) => ({ ...prev, [name]: value }));
+    const { name, value, type, checked } = e.target;
+    setForm((prev) => ({
+       ...prev, 
+       [name]: type === "checkbox" ? checked : value }));
   };
 
   const getBlockingErrors = () => {
@@ -84,6 +89,10 @@ export default function SubmissionForm({
       errors.push("Please describe the category");
     }
 
+    if (form.isSplitPayment) {
+      if (!form.totalPaymentParts.trim()) errors.push("Total payment parts is required");
+      if (!form.overallOrderTotal.trim()) errors.push("Overall order total is required.")
+    }
     return errors;
   };
 
@@ -204,6 +213,46 @@ export default function SubmissionForm({
             <option value="Other">Other</option>
           </select>
         </div>
+
+        <div className="flex items-center gap-2 pt-7">
+          <input
+            id="isSplitPayment"
+            name="isSplitPayment"
+            type="checkbox"
+            checked={form.isSplitPayment}
+            onChange={handleChange}
+            className="w-4 h-4 accent-mbzuai-navy"
+          />
+          <label
+            htmlFor="isSplitPayment"
+            className="text-sm text-mbzuai-navy/70"
+          >
+            This is a split payment
+          </label>
+        </div>
+
+        {form.isSplitPayment && (
+          <div>
+            <div>
+              <label className={labelClass}>Total Number of Payment Parts</label>
+              <input 
+              name="totalPaymentParts"
+              value={form.totalPaymentParts}
+              onChange={handleChange}
+              className={inputClass}/>
+            </div>
+
+            <div>
+              <label className={labelClass}>Overall Total Order</label>
+              <input 
+              name="overallOrderTotal"
+              value={form.overallOrderTotal}
+              onChange={handleChange}
+              className={inputClass}/>
+            </div>
+          </div>
+        )}
+
         <div>
           <label className={labelClass}>Card Last Four</label>
           <input
