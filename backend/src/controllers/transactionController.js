@@ -22,6 +22,7 @@ const createTransaction = async (req, res) => {
       notes,
       card_last_four, // for the card-match check
       card_digits_not_shown, //manager flag
+      ocr_flags,
       receipt_file_ids, // for linking uploaded files
       is_split_payment,
       total_payment_parts,
@@ -72,10 +73,17 @@ const createTransaction = async (req, res) => {
     const assignedPeriodId = reconciliationPeriod.reconciliation_period_id;
 
     let isLate = false;
-    const purchaseDateObj = new Date(purchase_date);
-    const today = new Date();
-    const daysSincePurchase = (today - purchaseDateObj) / (1000 * 60 * 60 * 24);
-    isLate = daysSincePurchase > 3;
+
+    if (periodResult.rows.length > 0) {
+      assignedPeriodId = periodResult.rows[0].reconciliation_period_id;
+      // --- late submission check: more than 3 days after purchase ---
+      const purchaseDateObj = new Date(purchase_date);
+      const today = new Date();
+      const daysSincePurchase =
+        (today - purchaseDateObj) / (1000 * 60 * 60 * 24);
+
+      isLate = daysSincePurchase > 3;
+    }
     // --- end period assignment ---
 
     // --- create the transaction in db ---
@@ -144,9 +152,14 @@ const createTransaction = async (req, res) => {
       flagsToCreate.push("missing_card_digits");
     }
 
-    // Late submission flag
     if (isLate) {
       flagsToCreate.push("late_submission");
+    }
+
+    if (Array.isArray(ocr_flags)) {
+      for (const flagType of ocr_flags) {
+        flagsToCreate.push(flagType);
+      }
     }
 
     if (is_split_payment) {

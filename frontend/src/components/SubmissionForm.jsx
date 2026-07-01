@@ -3,11 +3,19 @@ import apiClient from "../api/client";
 import { useAuth } from "../context/AuthContext";
 import Button from "./Button";
 
+const FLAG_MESSAGES = {
+  ocr_card_mismatch:
+    "The card digits differ across the uploaded receipts — please check they belong to the same card.",
+  ocr_currency_mismatch:
+    "The receipts show different currencies — please verify the amounts.",
+  multi_file_submission: "This submission includes multiple files.", // non-blocking; context for the manager
+};
+
 export default function SubmissionForm({
   extractedData,
   uploadedFiles,
-  ocrFlags = [],
-  reviewFlags = [],
+  managerFlags = [], // { type, blocking } objects
+  reviewNotices = [],
   onSubmitted,
   onBack,
 }) {
@@ -33,6 +41,7 @@ export default function SubmissionForm({
   });
 
   const [cardDigitsNotShown, setCardDigitsNotShown] = useState(false); // acknowledgment
+  const [ocrFlagsAcknowledged, setOcrFlagsAcknowledged] = useState(false);
 
   // when OCR data arrives, pre-fill the form
   useEffect(() => {
@@ -56,7 +65,7 @@ export default function SubmissionForm({
        [name]: type === "checkbox" ? checked : value }));
   };
 
-  const getBlockingErrors = () => {
+  const getFieldErrors = () => {
     const errors = [];
 
     if (!form.vendorName.trim()) errors.push("Vendor name is required");
@@ -96,8 +105,17 @@ export default function SubmissionForm({
     return errors;
   };
 
-  const blockingErrors = [...getBlockingErrors(), ...ocrFlags];
-  const canSubmit = blockingErrors.length === 0;
+  // blocking OCR flags (from receipt cross-checks)
+  const blockingFlags = managerFlags.filter((f) => f.blocking);
+  const hasBlockingFlags = blockingFlags.length > 0;
+
+  // blocking flags gate submission UNTIL the RLA acknowledges them
+  const flagsBlockSubmission = hasBlockingFlags && !ocrFlagsAcknowledged;
+
+  // field errors show in the generic panel; OCR flags show in their own panel.
+  // Both count toward whether the form can submit, but each renders in ONE place only.
+  const fieldErrors = getFieldErrors();
+  const canSubmit = fieldErrors.length === 0 && !flagsBlockSubmission;
 
   const handleSubmit = async () => {
     if (!canSubmit) {
@@ -121,6 +139,7 @@ export default function SubmissionForm({
         payment_method: form.paymentMethod,
         notes: form.notes,
         receipt_file_ids: uploadedFiles.map((f) => f.receipt_file_id),
+        ocr_flags: managerFlags.map((f) => f.type), // types only -> DB rows
       });
       setStatus(
         `Transaction created (ID: ${res.data.confirmation.transaction_id})`
@@ -148,6 +167,19 @@ export default function SubmissionForm({
           {cardholder.cardholder_name}
         </span>
       </p>
+
+      {reviewNotices.length > 0 && (
+        <div className="mt-4 bg-amber-50 border border-amber-200 rounded-lg p-4">
+          <p className="text-sm font-medium text-amber-800">
+            Please double-check — some details were extracted by AI:
+          </p>
+          <ul className="mt-1 list-disc list-inside text-sm text-amber-700">
+            {reviewNotices.map((n, i) => (
+              <li key={i}>{n}</li>
+            ))}
+          </ul>
+        </div>
+      )}
 
       <div className="mt-5 grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div>
@@ -342,16 +374,43 @@ export default function SubmissionForm({
         </div>
       </div>
 
-      {blockingErrors.length > 0 && (
+      {/* generic field errors (missing/invalid fields only) */}
+      {fieldErrors.length > 0 && (
         <div className="mt-5 bg-red-50 border border-red-200 rounded-lg p-4">
           <p className="text-sm font-medium text-red-700">
             Resolve these before submitting:
           </p>
           <ul className="mt-1 list-disc list-inside text-sm text-red-600">
-            {blockingErrors.map((e, i) => (
+            {fieldErrors.map((e, i) => (
               <li key={i}>{e}</li>
             ))}
           </ul>
+        </div>
+      )}
+
+      {/* OCR blocking flags — shown here only, with the acknowledge checkbox */}
+      {hasBlockingFlags && (
+        <div className="mt-4 bg-red-50 border border-red-200 rounded-lg p-4">
+          <p className="text-sm font-medium text-red-700">
+            Receipt check flagged an issue:
+          </p>
+          <ul className="mt-1 list-disc list-inside text-sm text-red-600">
+            {blockingFlags.map((f, i) => (
+              <li key={i}>{FLAG_MESSAGES[f.type] || f.type}</li>
+            ))}
+          </ul>
+          <label className="mt-3 flex items-start gap-2 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={ocrFlagsAcknowledged}
+              onChange={(e) => setOcrFlagsAcknowledged(e.target.checked)}
+              className="mt-1 w-4 h-4 accent-mbzuai-navy"
+            />
+            <span className="text-sm text-red-700">
+              I've reviewed these receipts and confirm the details are correct.
+              (This will still be flagged for manager review.)
+            </span>
+          </label>
         </div>
       )}
 

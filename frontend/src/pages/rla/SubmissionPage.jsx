@@ -23,8 +23,8 @@ export default function SubmissionPage() {
   const [uploadedFiles, setUploadedFiles] = useState([]);
   const [extractedData, setExtractedData] = useState(null);
   const [confirmation, setConfirmation] = useState(null);
-  const [ocrFlags, setOcrFlags] = useState([]);
-  const [reviewFlags, setRevewFlags] = useState([]);
+  const [managerFlags, setManagerFlags] = useState([]); // { type, blocking } objects
+  const [reviewNotices, setReviewNotices] = useState([]); // soft strings
 
   if (!cardholder) {
     return (
@@ -39,20 +39,23 @@ export default function SubmissionPage() {
     );
   }
 
-  const handleUploaded = async (files) => {
+  const handleUploaded = async (files, mode) => {
     setUploadedFiles(files);
     setStep("ocr");
     try {
       const res = await apiClient.post("/ocr/extract", {
-        filePaths: files.map(file => file.file_path),
+        filePaths: files.map((file) => file.file_path),
+        mode,
       });
       setExtractedData(res.data.consolidatedFields);
-      setOcrFlags(res.data.flags || []);
-      setReviewFlags(res.data.reviewFlags || []);
+      setManagerFlags(res.data.managerFlags || []);
+      setReviewNotices(res.data.reviewNotices || []);
       setStep("review");
     } catch (err) {
       console.error("OCR failed:", err.message);
       setExtractedData({});
+      setManagerFlags([]);
+      setReviewNotices([]);
       setStep("review");
     }
   };
@@ -116,14 +119,13 @@ export default function SubmissionPage() {
               </p>
             </div>
           )}
-          
 
           {step === "review" && (
             <SubmissionForm
               extractedData={extractedData}
               uploadedFiles={uploadedFiles}
-              ocrFlags={ocrFlags}
-              reviewFlags = {reviewFlags}
+              managerFlags={managerFlags}
+              reviewNotices={reviewNotices}
               onSubmitted={handleSubmitted}
               onBack={() => setStep("upload")}
             />
@@ -138,8 +140,8 @@ export default function SubmissionPage() {
                 setUploadedFiles([]);
                 setExtractedData(null);
                 setConfirmation(null);
-                setOcrFlags([]);
-                setReviewFlags([]);
+                setManagerFlags([]);
+                setReviewNotices([]);
               }}
             />
           )}
