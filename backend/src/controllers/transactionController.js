@@ -72,18 +72,11 @@ const createTransaction = async (req, res) => {
     const reconciliationPeriod = await getOrCreateReconciliationPeriod(purchase_date);
     const assignedPeriodId = reconciliationPeriod.reconciliation_period_id;
 
-    let isLate = false;
-
-    if (periodResult.rows.length > 0) {
-      assignedPeriodId = periodResult.rows[0].reconciliation_period_id;
-      // --- late submission check: more than 3 days after purchase ---
-      const purchaseDateObj = new Date(purchase_date);
-      const today = new Date();
-      const daysSincePurchase =
-        (today - purchaseDateObj) / (1000 * 60 * 60 * 24);
-
-      isLate = daysSincePurchase > 3;
-    }
+    // late submission check: more than 3 days after purchase
+    const purchaseDateObj = new Date(purchase_date);
+    const today = new Date();
+    const daysSincePurchase = (today - purchaseDateObj) / (1000 * 60 * 60 * 24);
+    const isLate = daysSincePurchase > 3;
     // --- end period assignment ---
 
     // --- create the transaction in db ---
@@ -197,7 +190,7 @@ const createTransaction = async (req, res) => {
       },
     });
   } catch (error) {
-    console.error(error.message);
+    console.error("createTransaction error:", error);
 
     return res.status(500).json({
       success: false,

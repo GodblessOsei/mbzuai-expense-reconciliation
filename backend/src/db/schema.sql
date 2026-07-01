@@ -32,7 +32,7 @@ CREATE TABLE transactions (
     original_currency VARCHAR(3),
     payment_method TEXT,
     reconciliation_period_id INTEGER REFERENCES reconciliation_periods(reconciliation_period_id),
-    is_split_payemnt BOOLEAN DEFAULT FALSE,
+    is_split_payment BOOLEAN DEFAULT FALSE,
     total_payment_parts INTEGER,
     overall_order_total NUMERIC(12,2)
     notes TEXT 
