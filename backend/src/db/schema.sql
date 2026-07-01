@@ -80,10 +80,14 @@ CREATE TABLE refunds (
 
 CREATE TABLE audit_logs (
     log_id         SERIAL PRIMARY KEY,
-    transaction_id INTEGER REFERENCES transactions(transaction_id),   -- nullable
-    user_id        INTEGER      NOT NULL REFERENCES users(user_id),
-    action_type    VARCHAR(100) NOT NULL,
-    timestamp      TIMESTAMP    NOT NULL DEFAULT NOW()
+    transaction_id INTEGER NOT NULL REFERENCES transactions(transaction_id),
+    user_id        INTEGER REFERENCES users(user_id),
+    action_type    VARCHAR(50) NOT NULL,
+    field_name     VARCHAR(100),
+    old_value      TEXT,
+    new_value      TEXT,
+    editor         VARCHAR(100) NOT NULL,
+    timestamp      TIMESTAMP NOT NULL DEFAULT NOW()
 );
 
 CREATE TABLE additional_spending (
