@@ -7,6 +7,8 @@ const {
   getAllTransactions,
   generateTransactionPdf,
   getTransactionPdf,
+  getTransactionFlags,
+  updateTransactionStatus,
 } = require("../controllers/transactionController");
 
 router.post("/final-submit", createTransaction);
@@ -14,5 +16,7 @@ router.get("/", getAllTransactions);
 router.get("/cardholder/:cardholderId", getTransactionsByCardholder);
 router.post("/:id/generate-pdf", generateTransactionPdf);
 router.get("/:id/pdf", getTransactionPdf);
+router.get("/:id/flags", getTransactionFlags);
+router.patch("/:id/status", updateTransactionStatus);
 
 module.exports = router;
