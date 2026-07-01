@@ -3,6 +3,7 @@ const path = require("path");
 const fs = require("fs");
 
 const { generateCombinedReceiptPdf } = require("../services/pdfService");
+const { getOrCreateReconciliationPeriod } = require("../services/reconciliationPeriodService");
 
 const createTransaction = async (req, res) => {
   try {
@@ -23,6 +24,9 @@ const createTransaction = async (req, res) => {
       card_digits_not_shown, //manager flag
       ocr_flags,
       receipt_file_ids, // for linking uploaded files
+      is_split_payment,
+      total_payment_parts,
+      overall_order_total,
     } = req.body;
     // required-field validation
     if (
@@ -32,7 +36,8 @@ const createTransaction = async (req, res) => {
       !vendor_name ||
       !invoice_number ||
       !amount_aed ||
-      !original_currency
+      !original_currency ||
+      is_split_payment && (!total_payment_parts || !overall_order_total)
     ) {
       return res.status(400).json({
         success: false,
@@ -64,15 +69,9 @@ const createTransaction = async (req, res) => {
     }
 
     // --- assign reconciliation period by purchase date ---
-    const periodResult = await pool.query(
-      `SELECT reconciliation_period_id, end_date
-        FROM reconciliation_periods
-        WHERE $1 BETWEEN start_date AND end_date
-        LIMIT 1`,
-      [purchase_date]
-    );
+    const reconciliationPeriod = await getOrCreateReconciliationPeriod(purchase_date);
+    const assignedPeriodId = reconciliationPeriod.reconciliation_period_id;
 
-    let assignedPeriodId = null;
     let isLate = false;
 
     if (periodResult.rows.length > 0) {
@@ -102,10 +101,13 @@ const createTransaction = async (req, res) => {
                 original_currency,
                 payment_method,
                 reconciliation_period_id,
+                is_split_payment,
+                total_payment_parts,
+                overall_order_total,
                 notes
             )
             VALUES (
-                $1, $2, NOW(), $3, $4, $5, $6, $7, $8, $9, $10, $11, $12
+                $1, $2, NOW(), $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15
             )
             RETURNING *`,
       [
@@ -120,6 +122,9 @@ const createTransaction = async (req, res) => {
         original_currency,
         payment_method,
         assignedPeriodId,
+        is_split_payment,
+        total_payment_parts,
+        overall_order_total,
         notes,
       ]
     );
@@ -157,6 +162,9 @@ const createTransaction = async (req, res) => {
       }
     }
 
+    if (is_split_payment) {
+      flagsToCreate.push("split_payment")
+    }
     for (const flagType of flagsToCreate) {
       await pool.query(
         `INSERT INTO flags (transaction_id, flag_type, resolved, created_at)
