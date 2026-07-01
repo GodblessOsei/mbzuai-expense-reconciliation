@@ -15,7 +15,7 @@ export default function SubmissionForm({
   extractedData,
   uploadedFiles,
   managerFlags = [], // { type, blocking } objects
-  reviewNotices = [], // soft strings
+  reviewNotices = [],
   onSubmitted,
   onBack,
 }) {

@@ -21,6 +21,7 @@ const createTransaction = async (req, res) => {
       notes,
       card_last_four, // for the card-match check
       card_digits_not_shown, //manager flag
+      ocr_flags,
       receipt_file_ids, // for linking uploaded files
     } = req.body;
     // required-field validation
@@ -82,7 +83,7 @@ const createTransaction = async (req, res) => {
       const daysSincePurchase =
         (today - purchaseDateObj) / (1000 * 60 * 60 * 24);
 
-      const isLate = daysSincePurchase > 3;
+      isLate = daysSincePurchase > 3;
     }
     // --- end period assignment ---
 
@@ -146,9 +147,14 @@ const createTransaction = async (req, res) => {
       flagsToCreate.push("missing_card_digits");
     }
 
-    // Late submission flag
     if (isLate) {
       flagsToCreate.push("late_submission");
+    }
+
+    if (Array.isArray(ocr_flags)) {
+      for (const flagType of ocr_flags) {
+        flagsToCreate.push(flagType);
+      }
     }
 
     for (const flagType of flagsToCreate) {

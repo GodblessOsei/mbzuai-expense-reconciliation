@@ -1,18 +1,14 @@
 require("dotenv").config();
 const fs = require("fs");
 const OpenAI = require("openai");
+const { pdf } = require("pdf-to-img");
 
 const client = new OpenAI({
   baseURL: "https://openrouter.ai/api/v1",
   apiKey: process.env.OPENROUTER_API_KEY,
 });
 
-const MODEL = "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free";
-//"openai/gpt-4o-mini";
-
-/* ------------------------------------------------------------------ */
-/* Prompts                                                            */
-/* ------------------------------------------------------------------ */
+const MODEL = "openai/gpt-4o-mini";
 
 const SINGLE_PROMPT = `You are a receipt/invoice data extractor for a university
 expense-reconciliation system. This is a legitimate task. Extract the fields from the
@@ -73,28 +69,54 @@ markdown:
 ]
 One object per receipt. Use an empty string for any missing field (false for isHandwritten).`;
 
-/* ------------------------------------------------------------------ */
-/* Helpers                                                            */
-/* ------------------------------------------------------------------ */
-
-// Build one image content block. Detects real format from magic bytes, not the file
-// extension (uploaded files are often mislabeled, e.g. JPEG named .png).
-const fileToImageBlock = (filePath) => {
+// Helpers ------
+// Turn one file path into ONE OR MORE image content blocks.
+// - Images (PNG/JPEG): one block. Real format detected from magic bytes, not the file
+//   extension (uploads are often mislabeled, e.g. JPEG named .png).
+// - PDFs: detected by the %PDF magic bytes, then each page is rendered to a PNG image
+//   block (the gpt4o-mini accepts png/jpeg/gif/webp only — NOT PDF).
+const fileToImageBlocks = async (filePath) => {
   const buffer = fs.readFileSync(filePath);
-  const base64 = buffer.toString("base64");
-  const isPng = buffer[0] === 0x89 && buffer[1] === 0x50; // PNG signature
-  const mimeType = isPng ? "image/png" : "image/jpeg";
-  return {
-    type: "image_url",
-    image_url: { url: `data:${mimeType};base64,${base64}` },
-  };
+
+  const isPdf =
+    buffer[0] === 0x25 && // %
+    buffer[1] === 0x50 && // P
+    buffer[2] === 0x44 && // D
+    buffer[3] === 0x46; // F
+
+  if (!isPdf) {
+    // single image block
+    const isPng = buffer[0] === 0x89 && buffer[1] === 0x50; // PNG signature
+    const mimeType = isPng ? "image/png" : "image/jpeg";
+    return [
+      {
+        type: "image_url",
+        image_url: {
+          url: `data:${mimeType};base64,${buffer.toString("base64")}`,
+        },
+      },
+    ];
+  }
+
+  // PDF -> render each page to a PNG image block
+  const blocks = [];
+  const document = await pdf(filePath, { scale: 2 }); // scale up for legibility
+  for await (const pageImage of document) {
+    blocks.push({
+      type: "image_url",
+      image_url: {
+        url: `data:image/png;base64,${pageImage.toString("base64")}`,
+      },
+    });
+  }
+  return blocks;
 };
 
 const callModel = async (promptText, paths) => {
-  const content = [
-    { type: "text", text: promptText },
-    ...paths.map(fileToImageBlock),
-  ];
+  // each path may yield several image blocks (a PDF expands to page-images), so flatten.
+  const blockArrays = await Promise.all(paths.map(fileToImageBlocks));
+  const imageBlocks = blockArrays.flat();
+  const content = [{ type: "text", text: promptText }, ...imageBlocks];
   const response = await client.chat.completions.create({
     model: MODEL,
     messages: [{ role: "user", content }],
@@ -114,31 +136,25 @@ const REVERSE_RANK = { 3: "high", 2: "medium", 1: "low" };
 
 const uniqueNonEmpty = (values) => [...new Set(values.filter(Boolean))];
 
-/* ------------------------------------------------------------------ */
-/* Mode 1: single receipt                                             */
-/* ------------------------------------------------------------------ */
+//Mode 1: single receipt
+
 const extractSingle = async (filePath) => {
   const fields = await callModel(SINGLE_PROMPT, [filePath]);
   if (!fields) return null;
   return {
     consolidatedFields: { ...fields, receiptCount: 1 },
     managerFlags: [], // { type, blocking } objects -> DB; none for a single file
-    reviewNotices: [], // soft, frontend-only
+    reviewNotices: [],
   };
 };
 
-/* ------------------------------------------------------------------ */
-/* Mode 2: multiple images of ONE order (do NOT sum)                  */
-/* ------------------------------------------------------------------ */
+// Mode 2: multiple images of ONE order
+
 const extractSingleOrder = async (filePaths) => {
   const fields = await callModel(SINGLE_ORDER_PROMPT, filePaths);
   if (!fields) return null;
   return {
     consolidatedFields: { ...fields, receiptCount: filePaths.length },
-    // single_order TRUSTS the RLA's "one order" claim and merges. The images are
-    // fragments (header / items / payment summary), NOT comparable complete receipts,
-    // so per-fragment cross-checks would produce false mismatches. We only record the
-    // context flag that this was a multi-file submission (non-blocking).
     managerFlags: [{ type: "multi_file_submission", blocking: false }],
     reviewNotices: [
       "Multiple images of one order — please verify the total is the single amount paid.",
@@ -146,35 +162,31 @@ const extractSingleOrder = async (filePaths) => {
   };
 };
 
-/* ------------------------------------------------------------------ */
-/* Mode 3: separate receipts (sum in code + mode-aware flags)         */
-/* ------------------------------------------------------------------ */
+// Mode 3: separate receipts (sum in code + mode-aware flags)
+
 const extractSeparateReceipts = async (filePaths) => {
   const perReceipt = await callModel(SEPARATE_RECEIPTS_PROMPT, filePaths);
   if (!Array.isArray(perReceipt) || perReceipt.length === 0) return null;
 
-  const managerFlags = []; // { type, blocking } -> all go to DB
-  const reviewNotices = []; // soft -> frontend only
+  const managerFlags = []; // object signature: { type, blocking }
+  const reviewNotices = [];
 
   // Context flag: this is a multi-file submission. Records for the manager, non-blocking.
   managerFlags.push({ type: "multi_file_submission", blocking: false });
 
-  // Sum amounts in code (reliable, auditable).
+  // Sum amounts of all perReceipt prices
   const total = perReceipt.reduce(
     (sum, r) => sum + (Number(r.amountAed) || 0),
     0
   );
 
-  // These are COMPLETE, comparable receipts, so cross-checks are meaningful here.
-  // A blocking flag means the RLA must resolve it before submitting.
-
-  // --- card digits differ across complete receipts -> serious -> block ---
+  // card digits differ across complete receipts -> serious -> block
   const uniqueCards = uniqueNonEmpty(perReceipt.map((r) => r.cardLastFour));
   if (uniqueCards.length > 1) {
     managerFlags.push({ type: "ocr_card_mismatch", blocking: true });
   }
 
-  // --- currency differs -> block ---
+  // currency differs -> block
   const uniqueCurrencies = uniqueNonEmpty(
     perReceipt.map((r) => (r.currency || "").toUpperCase())
   );
@@ -182,10 +194,10 @@ const extractSeparateReceipts = async (filePaths) => {
     managerFlags.push({ type: "ocr_currency_mismatch", blocking: true });
   }
 
-  // --- vendor mismatch: EXPECTED here (different sellers in one order), so NOT flagged. ---
+  // vendor mismatch: EXPECTED here (different sellers in one order), so NOT flagged.
   const vendors = uniqueNonEmpty(perReceipt.map((r) => r.vendorName));
 
-  // --- date mismatch: minor -> soft notice only, never a DB flag ---
+  // date mismatch: minor -> soft notice only, never a DB flag
   const uniqueDates = uniqueNonEmpty(perReceipt.map((r) => r.purchaseDate));
   if (uniqueDates.length > 1) {
     reviewNotices.push(
@@ -193,7 +205,6 @@ const extractSeparateReceipts = async (filePaths) => {
     );
   }
 
-  // soft notice that the total was summed
   reviewNotices.push(
     `${perReceipt.length} separate receipts were summed — please verify the total.`
   );
@@ -214,7 +225,7 @@ const extractSeparateReceipts = async (filePaths) => {
       vendorName: vendors.length === 1 ? vendors[0] : "Multiple vendors",
       purchaseDate: dates[0] || "", // earliest
       invoiceNumber: perReceipt[0].invoiceNumber || "",
-      amountAed: total.toFixed(2), // code-summed
+      amountAed: total.toFixed(2),
       currency: "AED",
       cardLastFour: uniqueCards.length === 1 ? uniqueCards[0] : "", // blank if mismatch
       isHandwritten: perReceipt.some((r) => r.isHandwritten),
@@ -227,9 +238,7 @@ const extractSeparateReceipts = async (filePaths) => {
   };
 };
 
-/* ------------------------------------------------------------------ */
-/* Entry point: branch on file count + mode                           */
-/* ------------------------------------------------------------------ */
+// Entry point: branch on file count + mode
 // mode (only used when >1 file):
 //   "single_order"      -> multiple images of one order (do NOT sum)
 //   "separate_receipts" -> separate receipts of one transaction (sum)
