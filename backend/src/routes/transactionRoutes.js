@@ -9,6 +9,7 @@ const {
   getTransactionPdf,
   getTransactionFlags,
   updateTransactionStatus,
+  updateTransaction,
 } = require("../controllers/transactionController");
 
 router.post("/final-submit", createTransaction);
@@ -18,5 +19,6 @@ router.post("/:id/generate-pdf", generateTransactionPdf);
 router.get("/:id/pdf", getTransactionPdf);
 router.get("/:id/flags", getTransactionFlags);
 router.patch("/:id/status", updateTransactionStatus);
+router.patch("/:id", updateTransaction);
 
 module.exports = router;

@@ -11,6 +11,12 @@ export default function ManagerTransactions() {
   const [periodFilter, setPeriodFilter] = useState("");
   const [generatingId, setGeneratingId] = useState(null);
   const [selectedTransaction, setSelectedTransaction] = useState(null);
+  const [modalFlags, setModalFlags] = useState([]);
+  const [editFields, setEditFields] = useState({});
+  const [saving, setSaving] = useState(false);
+  const [resolvingFlagId, setResolvingFlagId] = useState(null);
+  const [markingReviewed, setMarkingReviewed] = useState(false);
+
   // load everything once
   useEffect(() => {
     apiClient
@@ -23,6 +29,30 @@ export default function ManagerTransactions() {
       .get("/reconciliation-periods")
       .then((res) => setPeriods(res.data.periods));
   }, []);
+
+  useEffect(() => {
+    if (!selectedTransaction) {
+      setModalFlags([]);
+      setEditFields({});
+      return;
+    }
+    const { vendor_name, purchase_date, invoice_number, category, department, amount_aed, original_currency, payment_method, notes } = selectedTransaction;
+    setEditFields({
+      vendor_name: vendor_name ?? "",
+      purchase_date: purchase_date ? purchase_date.split("T")[0] : "",
+      invoice_number: invoice_number ?? "",
+      category: category ?? "",
+      department: department ?? "",
+      amount_aed: amount_aed ?? "",
+      original_currency: original_currency ?? "",
+      payment_method: payment_method ?? "",
+      notes: notes ?? "",
+    });
+    apiClient
+      .get(`/transactions/${selectedTransaction.transaction_id}/flags`)
+      .then((res) => setModalFlags(res.data.flags))
+      .catch((err) => console.error("Failed to load flags:", err));
+  }, [selectedTransaction]);
 
   // apply filters in the browser (client-side filtering)
   const filtered = transactions.filter((t) => {
@@ -47,6 +77,64 @@ export default function ManagerTransactions() {
       console.error("Generate failed:", err.message);
     } finally {
       setGeneratingId(null);
+    }
+  };
+
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      const res = await apiClient.patch(
+        `/transactions/${selectedTransaction.transaction_id}`,
+        editFields
+      );
+      setTransactions((prev) =>
+        prev.map((t) =>
+          t.transaction_id === selectedTransaction.transaction_id
+            ? { ...t, ...res.data.transaction }
+            : t
+        )
+      );
+      setSelectedTransaction((prev) => ({ ...prev, ...res.data.transaction }));
+    } catch (err) {
+      console.error("Save failed:", err);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleResolveFlag = async (flagId) => {
+    setResolvingFlagId(flagId);
+    try {
+      const res = await apiClient.patch(`/flags/${flagId}/resolve`);
+      setModalFlags((prev) =>
+        prev.map((f) => (f.flag_id === flagId ? res.data.flag : f))
+      );
+    } catch (err) {
+      console.error("Resolve flag failed:", err);
+    } finally {
+      setResolvingFlagId(null);
+    }
+  };
+
+  const handleMarkReviewed = async () => {
+    setMarkingReviewed(true);
+    try {
+      await apiClient.patch(
+        `/transactions/${selectedTransaction.transaction_id}/status`,
+        { status: "reviewed" }
+      );
+      setTransactions((prev) =>
+        prev.map((t) =>
+          t.transaction_id === selectedTransaction.transaction_id
+            ? { ...t, status: "reviewed" }
+            : t
+        )
+      );
+      setSelectedTransaction(null);
+    } catch (err) {
+      console.error("Mark reviewed failed:", err);
+    } finally {
+      setMarkingReviewed(false);
     }
   };
 
@@ -176,7 +264,7 @@ export default function ManagerTransactions() {
                       </div>
                     ) : (
                       <button
-                        onClick={() => handleGenerate(t.transaction_id)}
+                        onClick={(e) => { e.stopPropagation(); handleGenerate(t.transaction_id); }}
                         disabled={generatingId === t.transaction_id}
                         className="text-sm text-mbzuai-navy underline hover:text-mbzuai-gold disabled:opacity-50"
                       >
@@ -192,6 +280,140 @@ export default function ManagerTransactions() {
           </tbody>
         </table>
       </div>
+      {/* transaction detail modal */}
+      {selectedTransaction && (
+        <div
+          className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-6"
+          onClick={() => setSelectedTransaction(null)}
+        >
+          <div
+            className="bg-white rounded-2xl shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* modal header */}
+            <div className="px-6 py-4 border-b border-mbzuai-navy/10 flex items-start justify-between">
+              <div>
+                <p className="text-mbzuai-gold font-medium tracking-wide uppercase text-xs">
+                  Transaction #{selectedTransaction.transaction_id}
+                </p>
+                <h2 className="text-xl font-semibold text-mbzuai-navy mt-0.5">
+                  {selectedTransaction.vendor_name}
+                </h2>
+                <p className="text-sm text-mbzuai-navy/50 mt-0.5">
+                  {selectedTransaction.cardholder_name} &middot; submitted{" "}
+                  {new Date(selectedTransaction.submission_date).toLocaleDateString()}
+                </p>
+              </div>
+              <div className="flex items-center gap-3">
+                <span className={`inline-block px-3 py-1 rounded-full text-xs font-medium ${statusBadge(selectedTransaction.status)}`}>
+                  {selectedTransaction.status}
+                </span>
+                <button
+                  onClick={() => setSelectedTransaction(null)}
+                  className="text-mbzuai-navy/40 hover:text-mbzuai-navy text-lg leading-none"
+                >
+                  ✕
+                </button>
+              </div>
+            </div>
+
+            {/* editable fields */}
+            <div className="px-6 py-5">
+              <h3 className="text-sm font-semibold text-mbzuai-navy/60 uppercase tracking-wide mb-3">
+                Transaction Details
+              </h3>
+              <div className="grid grid-cols-2 gap-4">
+                {[
+                  { label: "Vendor", key: "vendor_name" },
+                  { label: "Invoice #", key: "invoice_number" },
+                  { label: "Purchase Date", key: "purchase_date", type: "date" },
+                  { label: "Amount (AED)", key: "amount_aed", type: "number" },
+                  { label: "Currency", key: "original_currency" },
+                  { label: "Payment Method", key: "payment_method" },
+                  { label: "Category", key: "category" },
+                  { label: "Department", key: "department" },
+                ].map(({ label, key, type = "text" }) => (
+                  <div key={key}>
+                    <label className="block text-xs text-mbzuai-navy/50 mb-1">{label}</label>
+                    <input
+                      type={type}
+                      value={editFields[key] ?? ""}
+                      onChange={(e) => setEditFields((prev) => ({ ...prev, [key]: e.target.value }))}
+                      className="w-full rounded-lg border border-mbzuai-navy/20 px-3 py-2 text-sm text-mbzuai-navy focus:border-mbzuai-gold focus:outline-none"
+                    />
+                  </div>
+                ))}
+                <div className="col-span-2">
+                  <label className="block text-xs text-mbzuai-navy/50 mb-1">Notes</label>
+                  <textarea
+                    value={editFields.notes ?? ""}
+                    onChange={(e) => setEditFields((prev) => ({ ...prev, notes: e.target.value }))}
+                    rows={2}
+                    className="w-full rounded-lg border border-mbzuai-navy/20 px-3 py-2 text-sm text-mbzuai-navy focus:border-mbzuai-gold focus:outline-none resize-none"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* flags */}
+            <div className="px-6 pb-5">
+              <h3 className="text-sm font-semibold text-mbzuai-navy/60 uppercase tracking-wide mb-3">
+                Flags
+              </h3>
+              {modalFlags.length === 0 ? (
+                <p className="text-sm text-mbzuai-navy/40">No flags on this transaction.</p>
+              ) : (
+                <ul className="space-y-2">
+                  {modalFlags.map((flag) => (
+                    <li
+                      key={flag.flag_id}
+                      className="flex items-center justify-between rounded-lg border border-mbzuai-navy/10 px-4 py-2"
+                    >
+                      <div>
+                        <span className="text-sm font-medium text-mbzuai-navy">
+                          {flag.flag_type.replace(/_/g, " ")}
+                        </span>
+                        <span className={`ml-2 text-xs ${flag.resolved ? "text-green-600" : "text-amber-600"}`}>
+                          {flag.resolved ? "resolved" : "unresolved"}
+                        </span>
+                      </div>
+                      {!flag.resolved && (
+                        <button
+                          onClick={() => handleResolveFlag(flag.flag_id)}
+                          disabled={resolvingFlagId === flag.flag_id}
+                          className="text-xs text-mbzuai-navy underline hover:text-mbzuai-gold disabled:opacity-50"
+                        >
+                          {resolvingFlagId === flag.flag_id ? "Resolving…" : "Resolve"}
+                        </button>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+
+            {/* footer actions */}
+            <div className="px-6 py-4 border-t border-mbzuai-navy/10 flex justify-between items-center">
+              <button
+                onClick={handleSave}
+                disabled={saving}
+                className="px-4 py-2 rounded-lg bg-mbzuai-navy text-white text-sm font-medium hover:bg-mbzuai-navy/80 disabled:opacity-50"
+              >
+                {saving ? "Saving…" : "Save Changes"}
+              </button>
+              {selectedTransaction.status !== "reviewed" && (
+                <button
+                  onClick={handleMarkReviewed}
+                  disabled={markingReviewed}
+                  className="px-4 py-2 rounded-lg bg-green-600 text-white text-sm font-medium hover:bg-green-700 disabled:opacity-50"
+                >
+                  {markingReviewed ? "Marking…" : "Mark as Reviewed"}
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </ManagerLayout>
   );
 }

@@ -3,7 +3,9 @@ const path = require("path");
 const fs = require("fs");
 
 const { generateCombinedReceiptPdf } = require("../services/pdfService");
-const { getOrCreateReconciliationPeriod } = require("../services/reconciliationPeriodService");
+const {
+  getOrCreateReconciliationPeriod,
+} = require("../services/reconciliationPeriodService");
 
 const createTransaction = async (req, res) => {
   try {
@@ -37,7 +39,7 @@ const createTransaction = async (req, res) => {
       !invoice_number ||
       !amount_aed ||
       !original_currency ||
-      is_split_payment && (!total_payment_parts || !overall_order_total)
+      (is_split_payment && (!total_payment_parts || !overall_order_total))
     ) {
       return res.status(400).json({
         success: false,
@@ -69,7 +71,8 @@ const createTransaction = async (req, res) => {
     }
 
     // --- assign reconciliation period by purchase date ---
-    const reconciliationPeriod = await getOrCreateReconciliationPeriod(purchase_date);
+    const reconciliationPeriod =
+      await getOrCreateReconciliationPeriod(purchase_date);
     const assignedPeriodId = reconciliationPeriod.reconciliation_period_id;
 
     // late submission check: more than 3 days after purchase
@@ -156,7 +159,7 @@ const createTransaction = async (req, res) => {
     }
 
     if (is_split_payment) {
-      flagsToCreate.push("split_payment")
+      flagsToCreate.push("split_payment");
     }
     for (const flagType of flagsToCreate) {
       await pool.query(
@@ -352,7 +355,9 @@ const getTransactionFlags = async (req, res) => {
     return res.status(200).json({ success: true, flags: result.rows });
   } catch (error) {
     console.error("getTransactionFlags error:", error);
-    return res.status(500).json({ success: false, message: "Failed to fetch flags" });
+    return res
+      .status(500)
+      .json({ success: false, message: "Failed to fetch flags" });
   }
 };
 
@@ -362,7 +367,12 @@ const updateTransactionStatus = async (req, res) => {
     const { status } = req.body;
 
     if (!VALID_STATUSES.includes(status)) {
-      return res.status(400).json({ success: false, message: `Invalid status. Must be one of: ${VALID_STATUSES.join(", ")}` });
+      return res
+        .status(400)
+        .json({
+          success: false,
+          message: `Invalid status. Must be one of: ${VALID_STATUSES.join(", ")}`,
+        });
     }
 
     const result = await pool.query(
@@ -371,14 +381,20 @@ const updateTransactionStatus = async (req, res) => {
     );
 
     if (result.rows.length === 0) {
-      return res.status(404).json({ success: false, message: "Transaction not found" });
+      return res
+        .status(404)
+        .json({ success: false, message: "Transaction not found" });
     }
 
     return res.status(200).json({ success: true, transaction: result.rows[0] });
   } catch (error) {
     console.error("updateTransactionStatus error:", error);
-    return res.status(500).json({ success: false, message: "Failed to update status" });
+    return res
+      .status(500)
+      .json({ success: false, message: "Failed to update status" });
   }
+};
+
 const updateTransaction = async (req, res) => {
   try {
     const { id } = req.params;
@@ -392,8 +408,8 @@ const updateTransaction = async (req, res) => {
       "amount_aed",
       "original_currency",
       "payment_method",
-      "notes"
-    ]
+      "notes",
+    ];
 
     const oldResult = await pool.query(
       `SELECT * FROM transactions WHERE transaction_id = $1`,
@@ -407,15 +423,15 @@ const updateTransaction = async (req, res) => {
       });
     }
     const oldTransaction = oldResult.rows[0];
-    const fieldsToUpdate = {}
-    const auditEntries = []
+    const fieldsToUpdate = {};
+    const auditEntries = [];
 
     for (const field of editableFields) {
       if (Object.prototype.hasOwnProperty.call(req.body, field)) {
         const oldValue = oldTransaction[field];
         const newValue = req.body[field];
 
-        if (String(oldValue ?? "") !== String(newValue ?? "")){
+        if (String(oldValue ?? "") !== String(newValue ?? "")) {
           fieldsToUpdate[field] = newValue;
           auditEntries.push({
             field_name: field,
@@ -434,7 +450,7 @@ const updateTransaction = async (req, res) => {
     }
 
     const setClause = Object.keys(fieldsToUpdate)
-      .map((field, index) => `${field} = $${index+1}`)
+      .map((field, index) => `${field} = $${index + 1}`)
       .join(", ");
     const values = Object.values(fieldsToUpdate);
 
@@ -478,14 +494,13 @@ const updateTransaction = async (req, res) => {
       audit_logs_created: auditEntries.length,
     });
   } catch (error) {
-    console.error(error.message);
+    console.error("updateTransaction error:", error);
 
     return res.status(500).json({
       success: false,
       message: "Failed to update transaction",
     });
   }
-
 };
 
 module.exports = {
@@ -496,5 +511,5 @@ module.exports = {
   getTransactionPdf,
   getTransactionFlags,
   updateTransactionStatus,
-  updateTransaction
+  updateTransaction,
 };
