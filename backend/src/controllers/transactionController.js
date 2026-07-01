@@ -340,10 +340,53 @@ const getTransactionPdf = async (req, res) => {
   }
 };
 
+const VALID_STATUSES = ["submitted", "flagged", "reviewed", "packaged"];
+
+const getTransactionFlags = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const result = await pool.query(
+      `SELECT * FROM flags WHERE transaction_id = $1 ORDER BY created_at ASC`,
+      [id]
+    );
+    return res.status(200).json({ success: true, flags: result.rows });
+  } catch (error) {
+    console.error("getTransactionFlags error:", error);
+    return res.status(500).json({ success: false, message: "Failed to fetch flags" });
+  }
+};
+
+const updateTransactionStatus = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { status } = req.body;
+
+    if (!VALID_STATUSES.includes(status)) {
+      return res.status(400).json({ success: false, message: `Invalid status. Must be one of: ${VALID_STATUSES.join(", ")}` });
+    }
+
+    const result = await pool.query(
+      `UPDATE transactions SET status = $1 WHERE transaction_id = $2 RETURNING *`,
+      [status, id]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ success: false, message: "Transaction not found" });
+    }
+
+    return res.status(200).json({ success: true, transaction: result.rows[0] });
+  } catch (error) {
+    console.error("updateTransactionStatus error:", error);
+    return res.status(500).json({ success: false, message: "Failed to update status" });
+  }
+};
+
 module.exports = {
   createTransaction,
   getTransactionsByCardholder,
   getAllTransactions,
   generateTransactionPdf,
   getTransactionPdf,
+  getTransactionFlags,
+  updateTransactionStatus,
 };
