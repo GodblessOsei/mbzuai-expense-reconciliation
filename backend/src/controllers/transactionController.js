@@ -347,10 +347,120 @@ const getTransactionPdf = async (req, res) => {
   }
 };
 
+const updateTransaction = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const editableFields = [
+      "vendor_name",
+      "purchase_date",
+      "invoice_number",
+      "category",
+      "department",
+      "amount_aed",
+      "original_currency",
+      "payment_method",
+      "notes"
+    ]
+
+    const oldResult = await pool.query(
+      `SELECT * FROM transactions WHERE transaction_id = $1`,
+      [id]
+    );
+
+    if (oldResult.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: "Transaction not found",
+      });
+    }
+    const oldTransaction = oldResult.rows[0];
+    const fieldsToUpdate = {}
+    const auditEntries = []
+
+    for (const field of editableFields) {
+      if (Object.prototype.hasOwnProperty.call(req.body, field)) {
+        const oldValue = oldTransaction[field];
+        const newValue = req.body[field];
+
+        if (String(oldValue ?? "") !== String(newValue ?? "")){
+          fieldsToUpdate[field] = newValue;
+          auditEntries.push({
+            field_name: field,
+            old_value: oldValue,
+            new_value: newValue,
+          });
+        }
+      }
+    }
+    if (auditEntries.length === 0) {
+      return res.status(200).json({
+        success: true,
+        message: "No changes detected",
+        transaction: oldTransaction,
+      });
+    }
+
+    const setClause = Object.keys(fieldsToUpdate)
+      .map((field, index) => `${field} = $${index+1}`)
+      .join(", ");
+    const values = Object.values(fieldsToUpdate);
+
+    const updateResult = await pool.query(
+      `UPDATE transactions
+      SET ${setClause}
+      WHERE transaction_id = $${values.length + 1}
+      RETURNING *`,
+      [...values, id]
+    );
+    const updatedTransaction = updateResult.rows[0];
+
+    for (const entry of auditEntries) {
+      await pool.query(
+        `INSERT INTO audit_logs (
+          transaction_id,
+          user_id,
+          action_type,
+          field_name,
+          old_value,
+          new_value,
+          editor,
+          timestamp
+        )
+        VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())`,
+        [
+          id,
+          null,
+          "UPDATE",
+          entry.field_name,
+          entry.old_value,
+          entry.new_value,
+          "manager",
+        ]
+      );
+    }
+    return res.status(200).json({
+      success: true,
+      message: "Transaction updated",
+      transaction: updatedTransaction,
+      audit_logs_created: auditEntries.length,
+    });
+  } catch (error) {
+    console.error(error.message);
+
+    return res.status(500).json({
+      success: false,
+      message: "Failed to update transaction",
+    });
+  }
+
+};
+
 module.exports = {
   createTransaction,
   getTransactionsByCardholder,
   getAllTransactions,
   generateTransactionPdf,
   getTransactionPdf,
+  updateTransaction
 };

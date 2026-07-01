@@ -10,7 +10,7 @@ export default function ManagerTransactions() {
   const [cardholderFilter, setCardholderFilter] = useState("");
   const [periodFilter, setPeriodFilter] = useState("");
   const [generatingId, setGeneratingId] = useState(null);
-
+  const [selectedTransaction, setSelectedTransaction] = useState(null);
   // load everything once
   useEffect(() => {
     apiClient
@@ -132,6 +132,7 @@ export default function ManagerTransactions() {
               filtered.map((t) => (
                 <tr
                   key={t.transaction_id}
+                  onClick={() => setSelectedTransaction(t)}
                   className="border-t border-mbzuai-navy/5 hover:bg-mbzuai-sand/30 transition-colors"
                 >
                   <td className="px-5 py-4 text-mbzuai-navy/70">
