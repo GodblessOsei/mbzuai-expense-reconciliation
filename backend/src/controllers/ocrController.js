@@ -19,7 +19,7 @@ const extractReceipt = async (req, res) => {
       });
     }
 
-    // service returns { consolidatedFields, flags, reviewFlags }
+    // service returns { consolidatedFields, managerFlags, reviewNotices }
     return res.status(200).json({ success: true, ...result });
   } catch (error) {
     console.error("OCR error:", error);

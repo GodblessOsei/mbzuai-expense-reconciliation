@@ -6,6 +6,9 @@ export default function ReceiptUpload({ onUploaded }) {
   const [files, setFiles] = useState([]);
   const [status, setStatus] = useState("");
   const [previewFile, setPreviewFile] = useState(null);
+  const [mode, setMode] = useState("separate_receipts"); // used for 2+ files
+
+  const isMultiple = files.length >= 2;
 
   const handleUpload = async () => {
     if (files.length === 0) return;
@@ -17,12 +20,18 @@ export default function ReceiptUpload({ onUploaded }) {
         headers: { "Content-Type": "multipart/form-data" },
       });
       setStatus("");
-      if (onUploaded) onUploaded(res.data.files);
+      // pass BOTH the saved files and the chosen mode up.
+      // single file -> mode is irrelevant, the ocrService ignores it.
+      if (onUploaded) onUploaded(res.data.files, isMultiple ? mode : undefined);
     } catch (err) {
       setStatus(
         "Upload failed: " + (err.response?.data?.message || err.message)
       );
     }
+  };
+
+  const handleRemove = (indexToRemove) => {
+    setFiles((prev) => prev.filter((_, i) => i !== indexToRemove));
   };
 
   return (
@@ -51,10 +60,7 @@ export default function ReceiptUpload({ onUploaded }) {
       {files.length > 0 && (
         <ul className="mt-3 space-y-1 text-sm text-mbzuai-navy/70">
           {files.map((f, i) => (
-            <li
-              key={i}
-              className="flex items-center justify-between py-1"
-            >
+            <li key={i} className="flex items-center justify-between py-1">
               <span className="truncate">• {f.name}</span>
 
               <button
@@ -64,11 +70,58 @@ export default function ReceiptUpload({ onUploaded }) {
               >
                 Preview
               </button>
+              <button
+                type="button"
+                onClick={() => handleRemove(i)}
+                className="text-sm text-red-500 underline"
+              >
+                Remove
+              </button>
             </li>
           ))}
         </ul>
       )}
 
+      {/* MODE QUESTION — only when 2+ files */}
+      {isMultiple && (
+        <div className="mt-5 rounded-xl border border-mbzuai-navy/15 bg-mbzuai-sand/30 p-4">
+          <p className="text-sm font-medium text-mbzuai-navy">
+            You added {files.length} files. What are they?
+          </p>
+          <div className="mt-3 space-y-2">
+            <label className="flex items-start gap-2 cursor-pointer">
+              <input
+                type="radio"
+                name="mode"
+                value="single_order"
+                checked={mode === "single_order"}
+                onChange={(e) => setMode(e.target.value)}
+                className="mt-1 accent-mbzuai-navy"
+              />
+              <span className="text-sm text-mbzuai-navy/80">
+                <span className="font-medium">Pages of one order</span> — e.g.
+                screenshots or pages of a single receipt/order. (The total won't
+                be added up.)
+              </span>
+            </label>
+            <label className="flex items-start gap-2 cursor-pointer">
+              <input
+                type="radio"
+                name="mode"
+                value="separate_receipts"
+                checked={mode === "separate_receipts"}
+                onChange={(e) => setMode(e.target.value)}
+                className="mt-1 accent-mbzuai-navy"
+              />
+              <span className="text-sm text-mbzuai-navy/80">
+                <span className="font-medium">Separate receipts</span> —
+                different receipts for this one transaction (e.g. several
+                sellers). (Totals will be added up.)
+              </span>
+            </label>
+          </div>
+        </div>
+      )}
       <div className="mt-5">
         <Button onClick={handleUpload} disabled={files.length === 0}>
           Upload &amp; Continue
@@ -77,40 +130,40 @@ export default function ReceiptUpload({ onUploaded }) {
       {status && <p className="mt-2 text-sm text-mbzuai-navy/60">{status}</p>}
 
       {previewFile && (
-      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-        <div className="bg-white rounded-3xl shadow-2xl p-4 w-[90vw] max-w-3xl max-h-[90vh]">
-          <div className="flex justify-between items-center mb-3">
-            <p className="font-medium text-mbzuai-navy">{previewFile.name}</p>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div className="bg-white rounded-3xl shadow-2xl p-4 w-[90vw] max-w-3xl max-h-[90vh]">
+            <div className="flex justify-between items-center mb-3">
+              <p className="font-medium text-mbzuai-navy">{previewFile.name}</p>
 
-            <button
-              type="button"
-              onClick={() => setPreviewFile(null)}
-              className="text-sm text-mbzuai-navy/60 hover:text-mbzuai-navy"
-            >
-              Close
-            </button>
+              <button
+                type="button"
+                onClick={() => setPreviewFile(null)}
+                className="text-sm text-mbzuai-navy/60 hover:text-mbzuai-navy"
+              >
+                Close
+              </button>
+            </div>
+
+            {previewFile.type.startsWith("image/") ? (
+              <img
+                src={URL.createObjectURL(previewFile)}
+                alt={previewFile.name}
+                className="max-h-[75vh] w-full object-contain rounded-lg"
+              />
+            ) : previewFile.type === "application/pdf" ? (
+              <iframe
+                src={URL.createObjectURL(previewFile)}
+                title={previewFile.name}
+                className="w-full h-[75vh] rounded-lg border"
+              />
+            ) : (
+              <p className="text-sm text-mbzuai-navy/60">
+                Preview is not available for this file type.
+              </p>
+            )}
           </div>
-
-          {previewFile.type.startsWith("image/") ? (
-            <img
-              src={URL.createObjectURL(previewFile)}
-              alt={previewFile.name}
-              className="max-h-[75vh] w-full object-contain rounded-lg"
-            />
-          ) : previewFile.type === "application/pdf" ? (
-            <iframe
-              src={URL.createObjectURL(previewFile)}
-              title={previewFile.name}
-              className="w-full h-[75vh] rounded-lg border"
-            />
-          ) : (
-            <p className="text-sm text-mbzuai-navy/60">
-              Preview is not available for this file type.
-            </p>
-          )}
         </div>
-      </div>
-    )}
+      )}
     </div>
   );
 }

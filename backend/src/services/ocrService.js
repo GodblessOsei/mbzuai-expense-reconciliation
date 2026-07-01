@@ -7,13 +7,13 @@ const client = new OpenAI({
   apiKey: process.env.OPENROUTER_API_KEY,
 });
 
-const MODEL = "openai/gpt-4o-mini";
+const MODEL = "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free";
+//"openai/gpt-4o-mini";
 
 /* ------------------------------------------------------------------ */
 /* Prompts                                                            */
 /* ------------------------------------------------------------------ */
 
-// One receipt, one record.
 const SINGLE_PROMPT = `You are a receipt/invoice data extractor for a university
 expense-reconciliation system. This is a legitimate task. Extract the fields from the
 single receipt image and return ONLY a JSON object, no markdown, in exactly this shape:
@@ -29,7 +29,6 @@ single receipt image and return ONLY a JSON object, no markdown, in exactly this
 }
 Use an empty string for any missing field (false for isHandwritten).`;
 
-// Several images that are all PAGES/SECTIONS of ONE order. Do NOT sum.
 const SINGLE_ORDER_PROMPT = `You are a receipt/invoice data extractor for a university
 expense-reconciliation system. This is a legitimate task. You are given MULTIPLE images
 that are all pages/sections/screenshots of ONE single order or receipt (for example: the
@@ -52,8 +51,6 @@ ONE record. Return ONLY this JSON object, no markdown:
 }
 Use an empty string for any missing field (false for isHandwritten).`;
 
-// Several SEPARATE receipts that together make one transaction (e.g. one Amazon order
-// fulfilled by different sellers). Extract EACH separately; code will sum + cross-check.
 const SEPARATE_RECEIPTS_PROMPT = `You are a receipt/invoice data extractor for a university
 expense-reconciliation system. This is a legitimate task. You are given MULTIPLE SEPARATE
 receipts that belong to ONE transaction (for example, one marketplace order fulfilled by
@@ -80,8 +77,8 @@ One object per receipt. Use an empty string for any missing field (false for isH
 /* Helpers                                                            */
 /* ------------------------------------------------------------------ */
 
-// Build one image content block. Detects the real format from magic bytes rather than
-// trusting the file extension (uploaded files are often mislabeled, e.g. JPEG named .png).
+// Build one image content block. Detects real format from magic bytes, not the file
+// extension (uploaded files are often mislabeled, e.g. JPEG named .png).
 const fileToImageBlock = (filePath) => {
   const buffer = fs.readFileSync(filePath);
   const base64 = buffer.toString("base64");
@@ -93,7 +90,6 @@ const fileToImageBlock = (filePath) => {
   };
 };
 
-// Make one model call with a text prompt + one or more images. Returns parsed JSON or null.
 const callModel = async (promptText, paths) => {
   const content = [
     { type: "text", text: promptText },
@@ -116,15 +112,18 @@ const callModel = async (promptText, paths) => {
 const RANK = { high: 3, medium: 2, low: 1 };
 const REVERSE_RANK = { 3: "high", 2: "medium", 1: "low" };
 
+const uniqueNonEmpty = (values) => [...new Set(values.filter(Boolean))];
+
 /* ------------------------------------------------------------------ */
 /* Mode 1: single receipt                                             */
 /* ------------------------------------------------------------------ */
 const extractSingle = async (filePath) => {
   const fields = await callModel(SINGLE_PROMPT, [filePath]);
+  if (!fields) return null;
   return {
-    consolidatedFields: fields,
-    flags: [], // nothing to cross-check on one file
-    reviewFlags: [],
+    consolidatedFields: { ...fields, receiptCount: 1 },
+    managerFlags: [], // { type, blocking } objects -> DB; none for a single file
+    reviewNotices: [], // soft, frontend-only
   };
 };
 
@@ -136,82 +135,102 @@ const extractSingleOrder = async (filePaths) => {
   if (!fields) return null;
   return {
     consolidatedFields: { ...fields, receiptCount: filePaths.length },
-    flags: [],
-    reviewFlags: [
-      "Multiple images of one order — please verify the total is correct",
+    // single_order TRUSTS the RLA's "one order" claim and merges. The images are
+    // fragments (header / items / payment summary), NOT comparable complete receipts,
+    // so per-fragment cross-checks would produce false mismatches. We only record the
+    // context flag that this was a multi-file submission (non-blocking).
+    managerFlags: [{ type: "multi_file_submission", blocking: false }],
+    reviewNotices: [
+      "Multiple images of one order — please verify the total is the single amount paid.",
     ],
   };
 };
 
 /* ------------------------------------------------------------------ */
-/* Mode 3: separate receipts (sum in code + cross-check flags)        */
+/* Mode 3: separate receipts (sum in code + mode-aware flags)         */
 /* ------------------------------------------------------------------ */
 const extractSeparateReceipts = async (filePaths) => {
   const perReceipt = await callModel(SEPARATE_RECEIPTS_PROMPT, filePaths);
   if (!Array.isArray(perReceipt) || perReceipt.length === 0) return null;
 
-  const flags = []; // blocking conflicts
-  const reviewFlags = []; // soft notices
+  const managerFlags = []; // { type, blocking } -> all go to DB
+  const reviewNotices = []; // soft -> frontend only
 
+  // Context flag: this is a multi-file submission. Records for the manager, non-blocking.
+  managerFlags.push({ type: "multi_file_submission", blocking: false });
+
+  // Sum amounts in code (reliable, auditable).
   const total = perReceipt.reduce(
     (sum, r) => sum + (Number(r.amountAed) || 0),
     0
   );
 
-  // cross-checks -> blocking flags
-  const uniqueCards = [
-    ...new Set(perReceipt.map((r) => r.cardLastFour).filter(Boolean)),
-  ];
-  if (uniqueCards.length > 1)
-    flags.push("Card numbers do not match across receipts");
+  // These are COMPLETE, comparable receipts, so cross-checks are meaningful here.
+  // A blocking flag means the RLA must resolve it before submitting.
 
-  const uniqueCurrencies = [
-    ...new Set(
-      perReceipt.map((r) => (r.currency || "").toUpperCase()).filter(Boolean)
-    ),
-  ];
-  if (uniqueCurrencies.length > 1)
-    flags.push("Currencies do not match across receipts");
+  // --- card digits differ across complete receipts -> serious -> block ---
+  const uniqueCards = uniqueNonEmpty(perReceipt.map((r) => r.cardLastFour));
+  if (uniqueCards.length > 1) {
+    managerFlags.push({ type: "ocr_card_mismatch", blocking: true });
+  }
 
-  // soft notice
-  reviewFlags.push(
-    `${perReceipt.length} separate receipts summed — please verify the total`
+  // --- currency differs -> block ---
+  const uniqueCurrencies = uniqueNonEmpty(
+    perReceipt.map((r) => (r.currency || "").toUpperCase())
+  );
+  if (uniqueCurrencies.length > 1) {
+    managerFlags.push({ type: "ocr_currency_mismatch", blocking: true });
+  }
+
+  // --- vendor mismatch: EXPECTED here (different sellers in one order), so NOT flagged. ---
+  const vendors = uniqueNonEmpty(perReceipt.map((r) => r.vendorName));
+
+  // --- date mismatch: minor -> soft notice only, never a DB flag ---
+  const uniqueDates = uniqueNonEmpty(perReceipt.map((r) => r.purchaseDate));
+  if (uniqueDates.length > 1) {
+    reviewNotices.push(
+      "Purchase dates differ across receipts — please verify."
+    );
+  }
+
+  // soft notice that the total was summed
+  reviewNotices.push(
+    `${perReceipt.length} separate receipts were summed — please verify the total.`
   );
 
-  const vendors = [
-    ...new Set(perReceipt.map((r) => r.vendorName).filter(Boolean)),
-  ];
   const dates = perReceipt
     .map((r) => r.purchaseDate)
     .filter(Boolean)
     .sort();
 
-  const perReceiptRanks = perReceipt.map((r) => RANK[r.confidence] || 2);
-  let overall = Math.min(...perReceiptRanks);
-  if (flags.length > 0) overall = Math.max(1, overall - 1);
+  // Confidence = weakest per-receipt read, dropped one level if any BLOCKING flag fired.
+  const ranks = perReceipt.map((r) => RANK[r.confidence] || 2);
+  let overall = Math.min(...ranks);
+  const hasBlocking = managerFlags.some((f) => f.blocking);
+  if (hasBlocking) overall = Math.max(1, overall - 1);
 
   return {
     consolidatedFields: {
       vendorName: vendors.length === 1 ? vendors[0] : "Multiple vendors",
-      purchaseDate: dates[0] || "",
+      purchaseDate: dates[0] || "", // earliest
       invoiceNumber: perReceipt[0].invoiceNumber || "",
-      amountAed: total.toFixed(2),
+      amountAed: total.toFixed(2), // code-summed
       currency: "AED",
-      cardLastFour: uniqueCards.length === 1 ? uniqueCards[0] : "",
+      cardLastFour: uniqueCards.length === 1 ? uniqueCards[0] : "", // blank if mismatch
       isHandwritten: perReceipt.some((r) => r.isHandwritten),
       confidence: REVERSE_RANK[overall],
       receiptCount: perReceipt.length,
-      perReceipt,
+      perReceipt, // breakdown, for transparency
     },
-    flags, // blocking
-    reviewFlags, // informational
+    managerFlags,
+    reviewNotices,
   };
 };
 
 /* ------------------------------------------------------------------ */
 /* Entry point: branch on file count + mode                           */
 /* ------------------------------------------------------------------ */
-// mode is only relevant when there is more than one file:
+// mode (only used when >1 file):
 //   "single_order"      -> multiple images of one order (do NOT sum)
 //   "separate_receipts" -> separate receipts of one transaction (sum)
 const extractReceiptData = async (filePaths, mode = "separate_receipts") => {
