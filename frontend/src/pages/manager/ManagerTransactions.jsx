@@ -11,6 +11,7 @@ export default function ManagerTransactions() {
   const [periodFilter, setPeriodFilter] = useState("");
   const [generatingId, setGeneratingId] = useState(null);
   const [selectedTransaction, setSelectedTransaction] = useState(null);
+  const isDeleted = selectedTransaction?.status === "deleted" || selectedTransaction?.is_active === false;
   const [modalFlags, setModalFlags] = useState([]);
   const [editFields, setEditFields] = useState({});
   const [saving, setSaving] = useState(false);
@@ -138,11 +139,43 @@ export default function ManagerTransactions() {
     }
   };
 
+  const handleDeleteTransaction = async () => {
+    if (!selectedTransaction) return;
+
+    const confirmed = window.confirm(
+      "Are you sure you want to delete this transaction?"
+    );
+
+    if (!confirmed) return;
+
+    try {
+      const res = await apiClient.patch(
+        `/transactions/${selectedTransaction.transaction_id}/delete`
+      );
+
+      const deletedTransaction = res.data.transaction;
+
+      setTransactions((prev) =>
+        prev.map((t) =>
+          t.transaction_id === deletedTransaction.transaction_id
+            ? deletedTransaction
+            : t
+        )
+      );
+
+      setSelectedTransaction(null);
+    } catch (err) {
+      console.error("Delete failed:", err);
+      alert("Failed to delete transaction.");
+    }
+  };
+
   const statusBadge = (status) => {
     const styles = {
       submitted: "bg-mbzuai-navy/10 text-mbzuai-navy",
       flagged: "bg-amber-100 text-amber-700",
       reviewed: "bg-green-100 text-green-700",
+      deleted: "bg-red-100 text-red-700",
       packaged: "bg-blue-100 text-blue-700",
     };
     return styles[status] || "bg-gray-100 text-gray-600";
@@ -339,6 +372,7 @@ export default function ManagerTransactions() {
                       type={type}
                       value={editFields[key] ?? ""}
                       onChange={(e) => setEditFields((prev) => ({ ...prev, [key]: e.target.value }))}
+                      disabled={isDeleted}
                       className="w-full rounded-lg border border-mbzuai-navy/20 px-3 py-2 text-sm text-mbzuai-navy focus:border-mbzuai-gold focus:outline-none"
                     />
                   </div>
@@ -348,6 +382,7 @@ export default function ManagerTransactions() {
                   <textarea
                     value={editFields.notes ?? ""}
                     onChange={(e) => setEditFields((prev) => ({ ...prev, notes: e.target.value }))}
+                    disabled={isDeleted}
                     rows={2}
                     className="w-full rounded-lg border border-mbzuai-navy/20 px-3 py-2 text-sm text-mbzuai-navy focus:border-mbzuai-gold focus:outline-none resize-none"
                   />
@@ -395,13 +430,25 @@ export default function ManagerTransactions() {
             {/* footer actions */}
             <div className="px-6 py-4 border-t border-mbzuai-navy/10 flex justify-between items-center">
               <button
+                onClick={handleDeleteTransaction}
+                disabled={selectedTransaction.status === "deleted"}
+                className="px-4 py-2 rounded-lg bg-red-600 text-white text-sm font-medium hover:bg-red-700 disabled:opacity-50"
+              >
+                Delete Transaction
+              </button>
+
+              <button
                 onClick={handleSave}
-                disabled={saving}
+                disabled={saving || isDeleted}
                 className="px-4 py-2 rounded-lg bg-mbzuai-navy text-white text-sm font-medium hover:bg-mbzuai-navy/80 disabled:opacity-50"
               >
-                {saving ? "Saving…" : "Save Changes"}
+                {isDeleted
+                  ? "Transaction Deleted"
+                  : saving
+                    ? "Saving..."
+                    : "Save Changes"}
               </button>
-              {selectedTransaction.status !== "reviewed" && (
+              {selectedTransaction.status !== "reviewed" && !isDeleted &&(
                 <button
                   onClick={handleMarkReviewed}
                   disabled={markingReviewed}

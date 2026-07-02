@@ -343,7 +343,7 @@ const getTransactionPdf = async (req, res) => {
   }
 };
 
-const VALID_STATUSES = ["submitted", "flagged", "reviewed", "packaged"];
+const VALID_STATUSES = ["submitted", "flagged", "reviewed", "packaged", "deleted"];
 
 const getTransactionFlags = async (req, res) => {
   try {
@@ -503,6 +503,39 @@ const updateTransaction = async (req, res) => {
   }
 };
 
+const deleteTransaction = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const result = await pool.query(
+      `UPDATE transactions
+       SET status = 'deleted',
+            is_active = FALSE
+       WHERE transaction_id = $1
+       RETURNING *`,
+      [id]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: "Transaction not found",
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      transaction: result.rows[0],
+    });
+  } catch (error) {
+    console.error("deleteTransaction error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to delete transaction",
+    });
+  }
+};
+
 module.exports = {
   createTransaction,
   getTransactionsByCardholder,
@@ -512,4 +545,5 @@ module.exports = {
   getTransactionFlags,
   updateTransactionStatus,
   updateTransaction,
+  deleteTransaction,
 };
