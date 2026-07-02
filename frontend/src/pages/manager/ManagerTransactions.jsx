@@ -11,6 +11,7 @@ export default function ManagerTransactions() {
   const [periodFilter, setPeriodFilter] = useState("");
   const [generatingId, setGeneratingId] = useState(null);
   const [selectedTransaction, setSelectedTransaction] = useState(null);
+  const isDeleted = selectedTransaction?.status === "deleted" || selectedTransaction?.is_active === false;
   const [modalFlags, setModalFlags] = useState([]);
   const [editFields, setEditFields] = useState({});
   const [saving, setSaving] = useState(false);
@@ -371,6 +372,7 @@ export default function ManagerTransactions() {
                       type={type}
                       value={editFields[key] ?? ""}
                       onChange={(e) => setEditFields((prev) => ({ ...prev, [key]: e.target.value }))}
+                      disabled={isDeleted}
                       className="w-full rounded-lg border border-mbzuai-navy/20 px-3 py-2 text-sm text-mbzuai-navy focus:border-mbzuai-gold focus:outline-none"
                     />
                   </div>
@@ -380,6 +382,7 @@ export default function ManagerTransactions() {
                   <textarea
                     value={editFields.notes ?? ""}
                     onChange={(e) => setEditFields((prev) => ({ ...prev, notes: e.target.value }))}
+                    disabled={isDeleted}
                     rows={2}
                     className="w-full rounded-lg border border-mbzuai-navy/20 px-3 py-2 text-sm text-mbzuai-navy focus:border-mbzuai-gold focus:outline-none resize-none"
                   />
@@ -433,15 +436,19 @@ export default function ManagerTransactions() {
               >
                 Delete Transaction
               </button>
-              
+
               <button
                 onClick={handleSave}
-                disabled={saving}
+                disabled={saving || isDeleted}
                 className="px-4 py-2 rounded-lg bg-mbzuai-navy text-white text-sm font-medium hover:bg-mbzuai-navy/80 disabled:opacity-50"
               >
-                {saving ? "Saving…" : "Save Changes"}
+                {isDeleted
+                  ? "Transaction Deleted"
+                  : saving
+                    ? "Saving..."
+                    : "Save Changes"}
               </button>
-              {selectedTransaction.status !== "reviewed" && (
+              {selectedTransaction.status !== "reviewed" && !isDeleted &&(
                 <button
                   onClick={handleMarkReviewed}
                   disabled={markingReviewed}

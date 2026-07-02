@@ -35,6 +35,7 @@ CREATE TABLE transactions (
     is_split_payment BOOLEAN DEFAULT FALSE,
     total_payment_parts INTEGER,
     overall_order_total NUMERIC(12,2),
+    is_active BOOLEAN NOT NULL DEFAULT TRUE,
     notes TEXT,
     pdf_path TEXT
     

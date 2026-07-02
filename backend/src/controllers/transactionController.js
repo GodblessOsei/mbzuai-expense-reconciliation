@@ -509,7 +509,8 @@ const deleteTransaction = async (req, res) => {
 
     const result = await pool.query(
       `UPDATE transactions
-       SET status = 'deleted'
+       SET status = 'deleted',
+            is_active = FALSE
        WHERE transaction_id = $1
        RETURNING *`,
       [id]
