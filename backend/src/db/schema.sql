@@ -34,8 +34,8 @@ CREATE TABLE transactions (
     reconciliation_period_id INTEGER REFERENCES reconciliation_periods(reconciliation_period_id),
     is_split_payment BOOLEAN DEFAULT FALSE,
     total_payment_parts INTEGER,
-    overall_order_total NUMERIC(12,2)
-    notes TEXT 
+    overall_order_total NUMERIC(12,2),
+    notes TEXT,
     pdf_path TEXT
     
 );
@@ -57,7 +57,7 @@ CREATE TABLE flags (
     flag_id        SERIAL PRIMARY KEY,
     transaction_id INTEGER NOT NULL REFERENCES transactions(transaction_id),
     flag_type      VARCHAR(100) NOT NULL,
-    resolved BOOLEAN DEFAULT FALSE
+    resolved BOOLEAN DEFAULT FALSE,
     created_at     TIMESTAMP    NOT NULL DEFAULT NOW()
 );
 
