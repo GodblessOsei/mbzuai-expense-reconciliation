@@ -12,8 +12,10 @@
   "type": "commonjs",
   "dependencies": {
     "@azure/ai-form-recognizer": "^5.1.0",
+    "archiver": "^8.0.0",
     "cors": "^2.8.6",
     "dotenv": "^17.4.2",
+    "exceljs": "^4.4.0",
     "express": "^5.2.1",
     "file-type": "^22.0.1",
     "multer": "^2.2.0",

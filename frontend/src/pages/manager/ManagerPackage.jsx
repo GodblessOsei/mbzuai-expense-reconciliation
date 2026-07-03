@@ -1,0 +1,193 @@
+import { useState, useEffect } from "react";
+import apiClient from "../../api/client";
+import ManagerLayout from "../../components/ManagerLayout";
+
+const fmt = (n) =>
+  Number(n).toLocaleString("en-AE", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+const StatCard = ({ label, value, sub, highlight }) => (
+  <div className={`rounded-xl border p-4 flex flex-col gap-1 ${highlight ? "border-mbzuai-gold bg-mbzuai-gold/10" : "border-mbzuai-navy/10 bg-white"}`}>
+    <p className="text-xs text-mbzuai-navy/50 uppercase tracking-wide font-medium">{label}</p>
+    <p className={`text-2xl font-bold ${highlight ? "text-mbzuai-navy" : "text-mbzuai-navy"}`}>{value}</p>
+    {sub && <p className="text-xs text-mbzuai-navy/40">{sub}</p>}
+  </div>
+);
+
+export default function ManagerPackage() {
+  const [cardholders, setCardholders]   = useState([]);
+  const [periods, setPeriods]           = useState([]);
+  const [cardholderId, setCardholderId] = useState("");
+  const [periodId, setPeriodId]         = useState("");
+  const [preview, setPreview]           = useState(null);
+  const [previewLoading, setPreviewLoading] = useState(false);
+  const [generating, setGenerating]     = useState(false);
+  const [generated, setGenerated]       = useState(null); // { filename, summary }
+  const [error, setError]               = useState("");
+
+  useEffect(() => {
+    apiClient.get("/cardholders").then((r) => setCardholders(r.data.cardholders));
+    apiClient.get("/reconciliation-periods").then((r) => setPeriods(r.data.periods));
+  }, []);
+
+  // auto-preview whenever both selectors are filled
+  useEffect(() => {
+    if (!cardholderId || !periodId) { setPreview(null); return; }
+    setPreviewLoading(true);
+    setGenerated(null);
+    setError("");
+    apiClient
+      .get("/spreadsheets/preview", { params: { cardholder_id: cardholderId, reconciliation_period_id: periodId } })
+      .then((r) => setPreview(r.data.preview))
+      .catch(() => setPreview(null))
+      .finally(() => setPreviewLoading(false));
+  }, [cardholderId, periodId]);
+
+  const handleGenerate = async () => {
+    setGenerating(true);
+    setError("");
+    try {
+      const res = await apiClient.post("/spreadsheets/generate", {
+        cardholder_id: cardholderId,
+        reconciliation_period_id: periodId,
+      });
+      setGenerated({ filename: res.data.filename, summary: res.data.summary });
+      setPreview(null);
+    } catch (err) {
+      setError(err.response?.data?.message ?? "Failed to generate spreadsheet");
+    } finally {
+      setGenerating(false);
+    }
+  };
+
+  const selectClass =
+    "w-full rounded-lg border border-mbzuai-navy/20 px-3 py-2.5 text-sm text-mbzuai-navy focus:border-mbzuai-gold focus:outline-none bg-white";
+
+  const selectedCardholder = cardholders.find((c) => String(c.cardholder_id) === cardholderId);
+  const selectedPeriod     = periods.find((p) => String(p.reconciliation_period_id) === periodId);
+
+  return (
+    <ManagerLayout>
+      <p className="text-mbzuai-gold font-medium tracking-wide uppercase text-sm">Manager</p>
+      <h1 className="mt-2 text-3xl font-semibold text-mbzuai-navy">Reconciliation Package</h1>
+      <p className="mt-1 text-sm text-mbzuai-navy/50">
+        Generate a bi-weekly cardholder spreadsheet for upload to E-Services.
+      </p>
+
+      {/* selectors */}
+      <div className="mt-8 grid grid-cols-2 gap-4 max-w-xl">
+        <div>
+          <label className="block text-xs font-medium text-mbzuai-navy/60 mb-1.5 uppercase tracking-wide">
+            Cardholder
+          </label>
+          <select value={cardholderId} onChange={(e) => setCardholderId(e.target.value)} className={selectClass}>
+            <option value="">Select cardholder…</option>
+            {cardholders.map((c) => (
+              <option key={c.cardholder_id} value={c.cardholder_id}>
+                {c.cardholder_name} (#{c.last_four_digits})
+              </option>
+            ))}
+          </select>
+        </div>
+        <div>
+          <label className="block text-xs font-medium text-mbzuai-navy/60 mb-1.5 uppercase tracking-wide">
+            Reconciliation Period
+          </label>
+          <select value={periodId} onChange={(e) => setPeriodId(e.target.value)} className={selectClass}>
+            <option value="">Select period…</option>
+            {periods.map((p) => (
+              <option key={p.reconciliation_period_id} value={p.reconciliation_period_id}>
+                {new Date(p.start_date).toLocaleDateString()} – {new Date(p.end_date).toLocaleDateString()}
+              </option>
+            ))}
+          </select>
+        </div>
+      </div>
+
+      {/* loading */}
+      {previewLoading && (
+        <p className="mt-8 text-sm text-mbzuai-navy/50 animate-pulse">Loading eligible transactions…</p>
+      )}
+
+      {/* preview */}
+      {preview && !generated && (
+        <div className="mt-8">
+          <div className="flex items-center gap-2 mb-4">
+            <h2 className="text-lg font-semibold text-mbzuai-navy">Package Preview</h2>
+            <span className="text-xs bg-mbzuai-navy/10 text-mbzuai-navy px-2 py-0.5 rounded-full font-medium">
+              {selectedCardholder?.cardholder_name} · {new Date(selectedPeriod?.start_date).toLocaleDateString()} – {new Date(selectedPeriod?.end_date).toLocaleDateString()}
+            </span>
+          </div>
+
+          {preview.totalCount === 0 ? (
+            <div className="rounded-xl border border-mbzuai-navy/10 bg-white p-8 text-center text-mbzuai-navy/40 text-sm">
+              No eligible transactions for this cardholder and period.
+            </div>
+          ) : (
+            <>
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+                <StatCard label="Total Transactions"          value={preview.totalCount} />
+                <StatCard label="Clean (Submitted)"           value={preview.submittedCount} sub="No flags" />
+                <StatCard label="Manager Reviewed"            value={preview.reviewedCount} sub="Flags resolved" />
+                <StatCard label="Total Spend"                 value={`AED ${fmt(preview.totalSpend)}`} />
+                <StatCard label="Excluded (Unresolved)"       value={`AED ${fmt(preview.excludedAmount)}`} />
+                <StatCard label="Eligible Replenishment"      value={`AED ${fmt(preview.eligibleReplenishment)}`} highlight />
+              </div>
+
+              <div className="mt-6 rounded-xl border border-mbzuai-navy/10 bg-mbzuai-sand/40 p-4 text-sm text-mbzuai-navy/70">
+                <strong className="text-mbzuai-navy">What happens when you generate:</strong>
+                <ul className="mt-1.5 list-disc list-inside space-y-0.5">
+                  <li>An Excel spreadsheet is created for {selectedCardholder?.cardholder_name} covering this period.</li>
+                  <li>All {preview.totalCount} eligible transactions are marked as <strong>Packaged</strong>.</li>
+                  <li>The file is ready to download and upload to E-Services.</li>
+                </ul>
+              </div>
+
+              {error && <p className="mt-3 text-sm text-red-600">{error}</p>}
+
+              <button
+                onClick={handleGenerate}
+                disabled={generating}
+                className="mt-5 px-6 py-2.5 rounded-lg bg-mbzuai-navy text-white text-sm font-medium hover:bg-mbzuai-navy/80 disabled:opacity-50"
+              >
+                {generating ? "Generating…" : "Generate Spreadsheet"}
+              </button>
+            </>
+          )}
+        </div>
+      )}
+
+      {/* success state */}
+      {generated && (
+        <div className="mt-8">
+          <div className="rounded-xl border border-green-200 bg-green-50 p-5">
+            <p className="text-green-800 font-semibold text-sm">Spreadsheet generated successfully</p>
+            <p className="text-green-700 text-xs mt-0.5">{generated.filename}</p>
+          </div>
+
+          <div className="mt-4 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
+            <StatCard label="Transactions"         value={generated.summary.transactionCount} />
+            <StatCard label="Total Spend"          value={`AED ${fmt(generated.summary.totalSpend)}`} />
+            <StatCard label="Excluded"             value={`AED ${fmt(generated.summary.excludedAmount)}`} />
+            <StatCard label="Eligible"             value={`AED ${fmt(generated.summary.eligibleReplenishment)}`} highlight />
+            <StatCard label="Missing Receipts"     value={generated.summary.missingReceiptCount} />
+          </div>
+
+          <div className="mt-5 flex gap-3">
+            <a
+              href={`http://localhost:5050/api/spreadsheets/download/${encodeURIComponent(generated.filename)}`}
+              className="px-5 py-2.5 rounded-lg bg-mbzuai-gold text-mbzuai-navy text-sm font-semibold hover:bg-mbzuai-gold/80"
+            >
+              Download Spreadsheet
+            </a>
+            <button
+              onClick={() => { setGenerated(null); setCardholderId(""); setPeriodId(""); }}
+              className="px-5 py-2.5 rounded-lg border border-mbzuai-navy/20 text-mbzuai-navy text-sm font-medium hover:bg-mbzuai-sand/50"
+            >
+              Generate Another
+            </button>
+          </div>
+        </div>
+      )}
+    </ManagerLayout>
+  );
+}
