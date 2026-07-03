@@ -68,9 +68,9 @@ export default function ManagerPackage() {
   return (
     <ManagerLayout>
       <p className="text-mbzuai-gold font-medium tracking-wide uppercase text-sm">Manager</p>
-      <h1 className="mt-2 text-3xl font-semibold text-mbzuai-navy">Reconciliation Package</h1>
+      <h1 className="mt-2 text-3xl font-semibold text-mbzuai-navy">Reconciliation Spreadsheet</h1>
       <p className="mt-1 text-sm text-mbzuai-navy/50">
-        Generate a bi-weekly cardholder spreadsheet for upload to E-Services.
+        Generate and download the Excel spreadsheet only. For the full ZIP (spreadsheet + receipt files), use <strong>Download Package</strong>.
       </p>
 
       {/* selectors */}
@@ -112,7 +112,7 @@ export default function ManagerPackage() {
       {preview && !generated && (
         <div className="mt-8">
           <div className="flex items-center gap-2 mb-4">
-            <h2 className="text-lg font-semibold text-mbzuai-navy">Package Preview</h2>
+            <h2 className="text-lg font-semibold text-mbzuai-navy">Spreadsheet Preview</h2>
             <span className="text-xs bg-mbzuai-navy/10 text-mbzuai-navy px-2 py-0.5 rounded-full font-medium">
               {selectedCardholder?.cardholder_name} · {new Date(selectedPeriod?.start_date).toLocaleDateString()} – {new Date(selectedPeriod?.end_date).toLocaleDateString()}
             </span>

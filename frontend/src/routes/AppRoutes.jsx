@@ -5,7 +5,7 @@ import ManagerDashboard from "../pages/manager/ManagerDashboard";
 import CardholderPicker from "../pages/CardholderPicker";
 import SubmissionPage from "../pages/rla/SubmissionPage";
 import ManagerTransactions from "../pages/manager/ManagerTransactions";
-import ManagerPackage from "../pages/manager/ManagerPackage";
+import ManagerSpreadsheet from "../pages/manager/ManagerSpreadsheet";
 import ManagerPackageDownload from "../pages/manager/ManagerPackageDownload";
 
 export default function AppRoutes() {
@@ -18,7 +18,7 @@ export default function AppRoutes() {
         <Route path="/rla/submit" element={<SubmissionPage />} />
         <Route path="/manager" element={<ManagerTransactions />} />
         <Route path="/manager/transactions" element={<ManagerTransactions />} />
-        <Route path="/manager/packages" element={<ManagerPackage />} />
+        <Route path="/manager/packages" element={<ManagerSpreadsheet />} />
         <Route path="/manager/package-download" element={<ManagerPackageDownload />} />
         <Route path="/manager/dashboard" element={<ManagerDashboard />} />
         <Route path="*" element={<Navigate to="/" replace />} />
