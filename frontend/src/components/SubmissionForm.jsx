@@ -137,6 +137,9 @@ export default function SubmissionForm({
         amount_aed: form.amountAed,
         original_currency: form.currency,
         payment_method: form.paymentMethod,
+        is_split_payement: form.isSplitPayment,
+        total_payment_parts: form.totalPaymentParts,
+        overall_order_total: form.overallOrderTotal,
         notes: form.notes,
         receipt_file_ids: uploadedFiles.map((f) => f.receipt_file_id),
         ocr_flags: managerFlags.map((f) => f.type), // types only -> DB rows

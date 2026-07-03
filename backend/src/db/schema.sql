@@ -81,6 +81,7 @@ CREATE TABLE refunds (
 
 CREATE TABLE audit_logs (
     log_id         SERIAL PRIMARY KEY,
+    edit_session_id UUID,
     transaction_id INTEGER NOT NULL REFERENCES transactions(transaction_id),
     user_id        INTEGER REFERENCES users(user_id),
     action_type    VARCHAR(50) NOT NULL,
