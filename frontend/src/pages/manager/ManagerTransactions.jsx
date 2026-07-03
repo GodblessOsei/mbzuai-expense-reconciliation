@@ -17,6 +17,10 @@ export default function ManagerTransactions() {
   const [saving, setSaving] = useState(false);
   const [resolvingFlagId, setResolvingFlagId] = useState(null);
   const [markingReviewed, setMarkingReviewed] = useState(false);
+  const [auditLogs, setAuditLogs] = useState([]);
+  const [showAuditLogs, setShowAuditLogs] = useState(false);
+  const [loadingAuditLogs, setLoadingAuditLogs] = useState(false);
+
 
   // load everything once
   useEffect(() => {
@@ -170,6 +174,31 @@ export default function ManagerTransactions() {
     }
   };
 
+  const handleViewHistory = async () => {
+    if (!selectedTransaction) return;
+
+    if (showAuditLogs) {
+      setShowAuditLogs(false);
+      return;
+    }
+
+    try {
+      setLoadingAuditLogs(true);
+
+      const res = await apiClient.get(
+        `/transactions/${selectedTransaction.transaction_id}/audit-logs`
+      );
+
+      setAuditLogs(res.data.audit_logs);
+      setShowAuditLogs(true);
+    } catch (err) {
+      console.error("Failed to fetch audit logs:", err);
+      alert("Failed to load edit history.");
+    } finally {
+      setLoadingAuditLogs(false);
+    }
+  };
+
   const statusBadge = (status) => {
     const styles = {
       submitted: "bg-mbzuai-navy/10 text-mbzuai-navy",
@@ -253,7 +282,11 @@ export default function ManagerTransactions() {
               filtered.map((t) => (
                 <tr
                   key={t.transaction_id}
-                  onClick={() => setSelectedTransaction(t)}
+                  onClick={() => {
+                    setAuditLogs([]);
+                    setShowAuditLogs(false);
+                    setSelectedTransaction(t);
+                  }}
                   className="border-t border-mbzuai-navy/5 hover:bg-mbzuai-sand/30 transition-colors"
                 >
                   <td className="px-5 py-4 text-mbzuai-navy/70">
@@ -424,6 +457,44 @@ export default function ManagerTransactions() {
                     </li>
                   ))}
                 </ul>
+              )}
+            </div>
+
+            <div className="px-6 pb-4">
+              <button
+                onClick={handleViewHistory}
+                className="text-sm font-medium text-mbzuai-gold hover:underline"
+              >
+                {showAuditLogs ? "Hide Edit History" : "View Edit History"}
+              </button>
+
+              {showAuditLogs && (
+                <div className="mt-4 space-y-3 rounded-lg border border-mbzuai-navy/10 p-4 bg-white">
+                  {auditLogs.length === 0 ? (
+                    <p className="text-sm text-mbzuai-navy/60">
+                      No edit history yet.
+                    </p>
+                  ) : (
+                    auditLogs.map((log) => (
+                      <div
+                        key={log.log_id}
+                        className="border-b border-mbzuai-navy/10 pb-3 last:border-b-0"
+                      >
+                        <p className="font-medium text-sm">
+                          {log.field_name}
+                        </p>
+
+                        <p className="text-sm text-mbzuai-navy/70">
+                          {String(log.old_value ?? "—")} → {String(log.new_value ?? "—")}
+                        </p>
+
+                        <p className="text-xs text-mbzuai-navy/50">
+                          {new Date(log.timestamp).toLocaleString()}
+                        </p>
+                      </div>
+                    ))
+                  )}
+                </div>
               )}
             </div>
 
