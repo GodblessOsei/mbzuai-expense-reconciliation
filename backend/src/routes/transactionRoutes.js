@@ -11,6 +11,7 @@ const {
   updateTransactionStatus,
   updateTransaction,
   deleteTransaction,
+  getTransactionAuditLogs,
 } = require("../controllers/transactionController");
 
 router.post("/final-submit", createTransaction);
@@ -21,6 +22,7 @@ router.get("/:id/pdf", getTransactionPdf);
 router.get("/:id/flags", getTransactionFlags);
 router.patch("/:id/delete", deleteTransaction);
 router.patch("/:id/status", updateTransactionStatus);
+router.get("/:id/audit-logs", getTransactionAuditLogs);
 router.patch("/:id", updateTransaction);
 
 module.exports = router;

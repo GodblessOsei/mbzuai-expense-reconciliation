@@ -1,6 +1,7 @@
 const pool = require("../db/pool");
 const path = require("path");
 const fs = require("fs");
+const crypto = require("crypto")
 
 const { generateCombinedReceiptPdf } = require("../services/pdfService");
 const {
@@ -463,9 +464,11 @@ const updateTransaction = async (req, res) => {
     );
     const updatedTransaction = updateResult.rows[0];
 
+    const editSessionId = crypto.randomUUID();
     for (const entry of auditEntries) {
       await pool.query(
         `INSERT INTO audit_logs (
+          edit_session_id,
           transaction_id,
           user_id,
           action_type,
@@ -475,8 +478,9 @@ const updateTransaction = async (req, res) => {
           editor,
           timestamp
         )
-        VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())`,
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW())`,
         [
+          editSessionId,
           id,
           null,
           "UPDATE",
@@ -536,6 +540,30 @@ const deleteTransaction = async (req, res) => {
   }
 };
 
+const getTransactionAuditLogs = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const result = await pool.query(
+      `SELECT *
+       FROM audit_logs
+       WHERE transaction_id = $1
+       ORDER BY timestamp DESC, log_id DESC`,
+      [id]
+    );
+    return res.status(200).json({
+      success: true,
+      audit_logs: result.rows,
+    });
+  } catch (error) {
+    console.error("getTransactionAuditLogs error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to fetch audit logs",
+    });
+  }
+}
+
 module.exports = {
   createTransaction,
   getTransactionsByCardholder,
@@ -546,4 +574,5 @@ module.exports = {
   updateTransactionStatus,
   updateTransaction,
   deleteTransaction,
+  getTransactionAuditLogs,
 };
