@@ -20,7 +20,9 @@ export default function ManagerTransactions() {
   const [auditLogs, setAuditLogs] = useState([]);
   const [showAuditLogs, setShowAuditLogs] = useState(false);
   const [loadingAuditLogs, setLoadingAuditLogs] = useState(false);
-
+  const [budgetItems, setBudgetItems] = useState([])
+  const inputClass =
+  "w-full rounded-lg border border-mbzuai-navy/20 px-3 py-2 text-sm text-mbzuai-navy";
 
   // load everything once
   useEffect(() => {
@@ -33,6 +35,10 @@ export default function ManagerTransactions() {
     apiClient
       .get("/reconciliation-periods")
       .then((res) => setPeriods(res.data.periods));
+    apiClient
+      .get("/budget-items")
+      .then((res) => setBudgetItems(res.data.budgetItems || []))
+      .catch((err) => console.error("Failed to load budget items:", err));
   }, []);
 
   useEffect(() => {
@@ -41,12 +47,13 @@ export default function ManagerTransactions() {
       setEditFields({});
       return;
     }
-    const { vendor_name, purchase_date, invoice_number, category, department, amount_aed, original_currency, payment_method, notes } = selectedTransaction;
+    const { vendor_name, purchase_date, invoice_number, category, budget_item_id, department, amount_aed, original_currency, payment_method, notes } = selectedTransaction;
     setEditFields({
       vendor_name: vendor_name ?? "",
       purchase_date: purchase_date ? purchase_date.split("T")[0] : "",
       invoice_number: invoice_number ?? "",
       category: category ?? "",
+      budget_item_id: budget_item_id ?? "",
       department: department ?? "",
       amount_aed: amount_aed ?? "",
       original_currency: original_currency ?? "",
@@ -92,20 +99,29 @@ export default function ManagerTransactions() {
         `/transactions/${selectedTransaction.transaction_id}`,
         editFields
       );
-      setTransactions((prev) =>
-        prev.map((t) =>
-          t.transaction_id === selectedTransaction.transaction_id
-            ? { ...t, ...res.data.transaction }
-            : t
-        )
-      );
-      setSelectedTransaction((prev) => ({ ...prev, ...res.data.transaction }));
+      const refreshed = await apiClient.get("/transactions");
+      setTransactions(refreshed.data.transactions);
+
+      setSelectedTransaction(null);
+      setEditFields({});
+      
     } catch (err) {
       console.error("Save failed:", err);
     } finally {
       setSaving(false);
     }
   };
+
+  const hasChanges =
+  selectedTransaction &&
+  Object.keys(editFields).some((key) => {
+    const original =
+      key === "purchase_date"
+        ? (selectedTransaction.purchase_date?.split("T")[0] ?? "")
+        : (selectedTransaction[key] ?? "");
+
+    return String(editFields[key] ?? "") !== String(original);
+  });
 
   const handleResolveFlag = async (flagId) => {
     setResolvingFlagId(flagId);
@@ -263,6 +279,7 @@ export default function ManagerTransactions() {
               <th className="px-5 py-3 font-medium">Ref</th>
               <th className="px-5 py-3 font-medium">Cardholder</th>
               <th className="px-5 py-3 font-medium">Vendor</th>
+              <th className="px-5 py-3 font-medium">Purchase For</th>
               <th className="px-5 py-3 font-medium">Amount</th>
               <th className="px-5 py-3 font-medium">Status</th>
               <th className="px-5 py-3 font-medium">Receipt PDF</th>
@@ -272,7 +289,7 @@ export default function ManagerTransactions() {
             {filtered.length === 0 ? (
               <tr>
                 <td
-                  colSpan={6}
+                  colSpan={7}
                   className="px-5 py-10 text-center text-mbzuai-navy/50"
                 >
                   No transactions match these filters.
@@ -297,6 +314,9 @@ export default function ManagerTransactions() {
                   </td>
                   <td className="px-5 py-4 text-mbzuai-navy/70">
                     {t.vendor_name}
+                  </td>
+                  <td className="px-5 py-4 text-mbzuai-navy/70">
+                    {t.budget_item_name || "—"}
                   </td>
                   <td className="px-5 py-4 text-mbzuai-navy/70">
                     AED {t.amount_aed}
@@ -397,17 +417,44 @@ export default function ManagerTransactions() {
                   { label: "Currency", key: "original_currency" },
                   { label: "Payment Method", key: "payment_method" },
                   { label: "Category", key: "category" },
+                  { label: "Purchase For", key: "budget_item_id", type: "budgetItem"},
                   { label: "Department", key: "department" },
                 ].map(({ label, key, type = "text" }) => (
                   <div key={key}>
                     <label className="block text-xs text-mbzuai-navy/50 mb-1">{label}</label>
-                    <input
+                    {type === "budgetItem" ? (
+                      <select 
+                      value={editFields[key] || ""}
+                      onChange={(e) => 
+                        setEditFields((prev) => ({
+                          ...prev,
+                          [key]: e.target.value,
+                        }))
+                      }
+                      disabled={isDeleted}
+                      className={inputClass}
+                      >
+                        <option value="">Select purchase purpose</option>
+                        {budgetItems.map((item) => (
+                          <option key={item.budget_item_id} value={item.budget_item_id}>
+                            {item.item_name}
+                          </option>
+                        ))}
+                      </select>
+                    ) : (
+                      <input 
                       type={type}
                       value={editFields[key] ?? ""}
-                      onChange={(e) => setEditFields((prev) => ({ ...prev, [key]: e.target.value }))}
+                      onChange={(e) => 
+                        setEditFields((prev) => ({
+                          ...prev,
+                          [key]: e.target.value,
+                        }))
+                      } 
                       disabled={isDeleted}
-                      className="w-full rounded-lg border border-mbzuai-navy/20 px-3 py-2 text-sm text-mbzuai-navy focus:border-mbzuai-gold focus:outline-none"
-                    />
+                      className={inputClass}
+                      />
+                    )}
                   </div>
                 ))}
                 <div className="col-span-2">
@@ -510,8 +557,8 @@ export default function ManagerTransactions() {
 
               <button
                 onClick={handleSave}
-                disabled={saving || isDeleted}
-                className="px-4 py-2 rounded-lg bg-mbzuai-navy text-white text-sm font-medium hover:bg-mbzuai-navy/80 disabled:opacity-50"
+                disabled={!hasChanges || saving || isDeleted}
+                className="px-4 py-2 rounded-lg bg-mbzuai-navy text-white text-sm font-medium hover:bg-mbzuai-navy/80 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {isDeleted
                   ? "Transaction Deleted"

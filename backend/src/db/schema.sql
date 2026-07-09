@@ -17,6 +17,13 @@ CREATE TABLE reconciliation_periods (
     end_date DATE
 );
 
+CREATE TABLE budget_items (
+    budget_item_id SERIAL PRIMARY KEY,
+    -- in case mbzuai stops running some events
+    item_name VARCHAR(255) NOT NULL UNIQUE,
+    is_active BOOLEAN DEFAULT TRUE
+);
+
 CREATE TABLE transactions (
     transaction_id SERIAL PRIMARY KEY,
     user_id INTEGER REFERENCES users(user_id),
@@ -27,6 +34,7 @@ CREATE TABLE transactions (
     vendor_name TEXT,
     invoice_number TEXT,
     category TEXT,
+    budget_item_id INTEGER REFERENCES budget_items(budget_item_id),
     department TEXT,
     amount_aed NUMERIC(12,2),
     original_currency VARCHAR(3),
@@ -103,4 +111,5 @@ CREATE TABLE additional_spending (
     reference_number VARCHAR(100),
     notes            TEXT
 );
+
 
