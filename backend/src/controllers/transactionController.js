@@ -120,8 +120,8 @@ const createTransaction = async (req, res) => {
         payment_method,
         assignedPeriodId,
         is_split_payment,
-        total_payment_parts,
-        overall_order_total,
+        total_payment_parts || null,
+        overall_order_total || null,
         notes,
       ]
     );

@@ -66,23 +66,24 @@ export default function ReceiptUpload({ onUploaded }) {
       {files.length > 0 && (
         <ul className="mt-3 space-y-1 text-sm text-mbzuai-navy/70">
           {files.map((f, i) => (
-            <li key={i} className="flex items-center justify-between py-1">
-              <span className="truncate">• {f.name}</span>
-
-              <button
-                type="button"
-                onClick={() => setPreviewFile(f)}
-                className="text-sm text-mbzuai-gold underline"
-              >
-                Preview
-              </button>
-              <button
-                type="button"
-                onClick={() => handleRemove(i)}
-                className="text-sm text-red-500 underline"
-              >
-                Remove
-              </button>
+            <li key={i} className="flex items-center gap-2 py-1">
+              <span className="truncate min-w-0 flex-1">• {f.name}</span>
+              <div className="flex shrink-0 gap-3 ml-2">
+                <button
+                  type="button"
+                  onClick={() => setPreviewFile(f)}
+                  className="text-sm text-mbzuai-gold underline"
+                >
+                  Preview
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleRemove(i)}
+                  className="text-sm text-red-500 underline"
+                >
+                  Remove
+                </button>
+              </div>
             </li>
           ))}
         </ul>

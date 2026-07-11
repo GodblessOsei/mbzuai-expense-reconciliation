@@ -8,8 +8,8 @@ const client = new OpenAI({
   apiKey: process.env.OPENROUTER_API_KEY,
 });
 
-const MODEL = "nvidia/nemotron-3-ultra-550b-a55b:free";
-//"openai/gpt-4o-mini";
+const MODEL = "openai/gpt-4o-mini";
+//"nvidia/nemotron-3-ultra-550b-a55b:free";
 
 const SINGLE_PROMPT = `You are a receipt/invoice data extractor for a university
 expense-reconciliation system. This is a legitimate task. Extract the fields from the

@@ -1,6 +1,6 @@
 const pool = require("../db/pool");
 
-const FIRST_PERIOD_START = new Date("2024-07-24T00:00:00Z");
+const FIRST_PERIOD_START = new Date("2026-07-24T00:00:00Z");
 const PERIOD_LENGTH_DAYS = 14;
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
 
@@ -19,11 +19,6 @@ const calculatePeriodDates = (transactionDate) => {
 
   if (Number.isNaN(date.getTime())) {
     throw new Error("Invalid transaction date");
-  }
-  if (date < FIRST_PERIOD_START) {
-    throw new Error(
-      "Transaction date is before the first reconciliation period"
-    );
   }
   const daysSinceStart = Math.floor((date - FIRST_PERIOD_START) / MS_PER_DAY);
   const periodIndex = Math.floor(daysSinceStart / PERIOD_LENGTH_DAYS);
