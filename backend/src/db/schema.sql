@@ -42,7 +42,9 @@ CREATE TABLE transactions (
     reconciliation_period_id INTEGER REFERENCES reconciliation_periods(reconciliation_period_id),
     is_split_payment BOOLEAN DEFAULT FALSE,
     total_payment_parts INTEGER,
+    payment_part_number INTEGER,
     overall_order_total NUMERIC(12,2),
+    purchase_description TEXT,
     is_active BOOLEAN NOT NULL DEFAULT TRUE,
     notes TEXT,
     pdf_path TEXT

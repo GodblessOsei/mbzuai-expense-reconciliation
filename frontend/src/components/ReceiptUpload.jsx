@@ -58,7 +58,15 @@ export default function ReceiptUpload({ onUploaded }) {
           type="file"
           multiple
           accept="image/jpeg,image/png,application/pdf"
-          onChange={(e) => setFiles(Array.from(e.target.files))}
+          onChange={(e) => {
+            const incoming = Array.from(e.target.files);
+            setFiles((prev) => {
+              const existingKeys = new Set(prev.map((f) => `${f.name}-${f.size}`));
+              const newFiles = incoming.filter((f) => !existingKeys.has(`${f.name}-${f.size}`));
+              return [...prev, ...newFiles];
+            });
+            e.target.value = "";
+          }}
           className="hidden"
         />
       </label>

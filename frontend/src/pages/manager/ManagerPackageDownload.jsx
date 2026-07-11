@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import apiClient from "../../api/client";
+import apiClient, { API_BASE_URL } from "../../api/client";
 import ManagerLayout from "../../components/ManagerLayout";
 
 const fmt = (n) =>
@@ -52,7 +52,7 @@ export default function ManagerPackageDownload() {
     setDownloading(true);
     setError("");
     try {
-      const res = await fetch("http://localhost:5050/api/packages/download", {
+      const res = await fetch(`${API_BASE_URL}/packages/download`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -70,7 +70,7 @@ export default function ManagerPackageDownload() {
       const blob = await res.blob();
       const disposition = res.headers.get("Content-Disposition") || "";
       const nameMatch = disposition.match(/filename="(.+)"/);
-      const filename = nameMatch ? nameMatch[1] : "MBZUAI_Package.zip";
+      const filename = nameMatch ? nameMatch[1] : "MBZUAI_RLA_Package.zip";
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;

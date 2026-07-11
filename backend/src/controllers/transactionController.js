@@ -1,7 +1,7 @@
 const pool = require("../db/pool");
 const path = require("path");
 const fs = require("fs");
-const crypto = require("crypto")
+const crypto = require("crypto");
 
 const { generateCombinedReceiptPdf } = require("../services/pdfService");
 const {
@@ -30,7 +30,9 @@ const createTransaction = async (req, res) => {
       receipt_file_ids, // for linking uploaded files
       is_split_payment,
       total_payment_parts,
+      payment_part_number,
       overall_order_total,
+      purchase_description,
     } = req.body;
     // required-field validation
     if (
@@ -102,11 +104,13 @@ const createTransaction = async (req, res) => {
                 reconciliation_period_id,
                 is_split_payment,
                 total_payment_parts,
+                payment_part_number,
                 overall_order_total,
+                purchase_description,
                 notes
             )
             VALUES (
-                $1, $2, NOW(), $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16
+                $1, $2, NOW(), $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18
             )
             RETURNING *`,
       [
@@ -124,7 +128,9 @@ const createTransaction = async (req, res) => {
         assignedPeriodId,
         is_split_payment,
         total_payment_parts || null,
+        payment_part_number || null,
         overall_order_total || null,
+        purchase_description || null,
         notes,
       ]
     );
@@ -350,7 +356,13 @@ const getTransactionPdf = async (req, res) => {
   }
 };
 
-const VALID_STATUSES = ["submitted", "flagged", "reviewed", "packaged", "deleted"];
+const VALID_STATUSES = [
+  "submitted",
+  "flagged",
+  "reviewed",
+  "packaged",
+  "deleted",
+];
 
 const getTransactionFlags = async (req, res) => {
   try {
@@ -374,12 +386,10 @@ const updateTransactionStatus = async (req, res) => {
     const { status } = req.body;
 
     if (!VALID_STATUSES.includes(status)) {
-      return res
-        .status(400)
-        .json({
-          success: false,
-          message: `Invalid status. Must be one of: ${VALID_STATUSES.join(", ")}`,
-        });
+      return res.status(400).json({
+        success: false,
+        message: `Invalid status. Must be one of: ${VALID_STATUSES.join(", ")}`,
+      });
     }
 
     const result = await pool.query(
@@ -569,7 +579,7 @@ const getTransactionAuditLogs = async (req, res) => {
       message: "Failed to fetch audit logs",
     });
   }
-}
+};
 
 module.exports = {
   createTransaction,

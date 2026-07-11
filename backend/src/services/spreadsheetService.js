@@ -114,6 +114,7 @@ const generateReconciliationSpreadsheet = async (
        c.last_four_digits,
        rp.start_date AS period_start,
        rp.end_date   AS period_end,
+       bi.item_name  AS budget_item_name,
        EXISTS(
          SELECT 1 FROM flags f
          WHERE f.transaction_id = t.transaction_id AND f.resolved = FALSE
@@ -127,11 +128,12 @@ const generateReconciliationSpreadsheet = async (
          WHERE rf.transaction_id = t.transaction_id
        ) AS receipt_filenames
      FROM transactions t
-     LEFT JOIN cardholders c  ON c.cardholder_id            = t.cardholder_id
+     LEFT JOIN cardholders c         ON c.cardholder_id             = t.cardholder_id
      LEFT JOIN reconciliation_periods rp ON rp.reconciliation_period_id = t.reconciliation_period_id
+     LEFT JOIN budget_items bi       ON bi.budget_item_id            = t.budget_item_id
      WHERE t.cardholder_id            = $1
        AND t.reconciliation_period_id = $2
-       AND t.status IN ('submitted', 'reviewed')
+       AND t.status IN ('submitted', 'reviewed', 'packaged')
      ORDER BY t.purchase_date ASC`,
     [cardholderId, reconciliationPeriodId]
   );
@@ -201,11 +203,11 @@ const generateReconciliationSpreadsheet = async (
     { key: "notes", width: 24 }, // V  22 Notes
   ];
 
-  // summary box column boundaries (3 boxes spanning A–V, 7/7/8 cols)
+  // summary box column boundaries (3 boxes, 3 cols each — A–C, D–F, G–I)
   const BOX = [
-    { start: 1, end: 7 }, // A–G
-    { start: 8, end: 14 }, // H–N
-    { start: 15, end: 22 }, // O–V
+    { start: 1, end: 3 }, // A–C
+    { start: 4, end: 6 }, // D–F
+    { start: 7, end: 9 }, // G–I
   ];
 
   // ── ROW 1: title ──────────────────────────────────────────────────────────
@@ -335,10 +337,10 @@ const generateReconciliationSpreadsheet = async (
     "Invoice / Order #",
     "Department",
     "Category",
-    "Event / Activity",
+    "Budget Item",
     "Description",
     "Amount (AED)",
-    "Currency",
+    "Original Currency",
     "Payment Method",
     "Receipt File(s)",
     "Receipt Status",
@@ -382,7 +384,7 @@ const generateReconciliationSpreadsheet = async (
     const receiptStatus =
       t.receipt_filenames.length > 0 ? "Complete" : "Missing";
     const splitRef = t.is_split_payment
-      ? `Part ${t.payment_part_number ?? "?"} of ${t.total_payment_parts ?? "?"}`
+      ? `Part ${t.payment_part_number} of ${t.total_payment_parts}`
       : "";
     const eligibleLabel = t.has_unresolved_flags ? "No" : "Yes";
 
@@ -402,7 +404,7 @@ const generateReconciliationSpreadsheet = async (
       t.category ?? "",
       // NOTE: assumes event_activity / purchase_description columns exist
       // on transactions per Section 8 of the brief — rename if different.
-      t.event_activity ?? "",
+      t.budget_item_name ?? "",
       t.purchase_description ?? "",
       parseFloat(t.amount_aed),
       t.original_currency ?? "",
@@ -468,15 +470,6 @@ const generateReconciliationSpreadsheet = async (
     };
     cell.border = { top: { style: "medium", color: { argb: NAVY } } };
   });
-
-  // ── LEGEND ────────────────────────────────────────────────────────────────
-  const legendRowNum = totalsRow.number + 2;
-  ws.mergeCells(legendRowNum, 1, legendRowNum, TOTAL_COLS);
-  const legendCell = ws.getCell(legendRowNum, 1);
-  legendCell.value =
-    "Legend:  Green = OK / Eligible / Complete    Amber = Review / Late / Resolved Exception    Red = Missing / Unresolved / Excluded";
-  legendCell.font = { italic: true, size: 8, color: { argb: "FF595959" } };
-  ws.getRow(legendRowNum).height = 16;
 
   // ── SAVE ──────────────────────────────────────────────────────────────────
   const periodStr = `${formatDate(period_start).replace(/\//g, "-")}_${formatDate(period_end).replace(/\//g, "-")}`;

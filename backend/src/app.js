@@ -13,7 +13,7 @@ const budgetItemRoutes = require("./routes/budgetItemRoutes");
 const spreadsheetRoutes = require("./routes/spreadsheetRoutes");
 const packageRoutes = require("./routes/packageRoutes");
 
-app.use(cors({ origin: "http://localhost:5173" }));
+app.use(cors({ origin: "http://localhost:5173", exposedHeaders: ["Content-Disposition"] }));
 app.use(express.json());
 app.use("/api/transactions", transactionRoutes);
 app.use("/api/ocr", ocrRoutes);

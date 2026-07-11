@@ -1,6 +1,6 @@
 // frontend/src/pages/manager/ManagerTransactions.jsx
 import { useState, useEffect } from "react";
-import apiClient from "../../api/client";
+import apiClient, { API_BASE_URL } from "../../api/client";
 import ManagerLayout from "../../components/ManagerLayout";
 
 export default function ManagerTransactions() {
@@ -334,7 +334,7 @@ export default function ManagerTransactions() {
                     {t.pdf_path ? (
                       <div className="flex gap-3 text-sm">
                         <a
-                          href={`http://localhost:5050/api/transactions/${t.transaction_id}/pdf`}
+                          href={`${API_BASE_URL}/transactions/${t.transaction_id}/pdf`}
                           target="_blank"
                           rel="noreferrer"
                           className="text-mbzuai-navy underline hover:text-mbzuai-gold"
@@ -342,7 +342,7 @@ export default function ManagerTransactions() {
                           View
                         </a>
                         <a
-                          href={`http://localhost:5050/api/transactions/${t.transaction_id}/pdf?download=true`}
+                          href={`${API_BASE_URL}/transactions/${t.transaction_id}/pdf?download=true`}
                           className="text-mbzuai-navy underline hover:text-mbzuai-gold"
                         >
                           Download

@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import apiClient from "../../api/client";
+import apiClient, { API_BASE_URL } from "../../api/client";
 import ManagerLayout from "../../components/ManagerLayout";
 
 const fmt = (n) =>
@@ -128,7 +128,7 @@ export default function ManagerPackage() {
                 <StatCard label="Total Transactions"          value={preview.totalCount} />
                 <StatCard label="Clean (Submitted)"           value={preview.submittedCount} sub="No flags" />
                 <StatCard label="Manager Reviewed"            value={preview.reviewedCount} sub="Flags resolved" />
-                <StatCard label="Total Spend"                 value={`AED ${fmt(preview.totalSpend)}`} />
+                <StatCard label="Already Packaged"            value={preview.packagedCount} sub="Will regenerate" />
                 <StatCard label="Excluded (Unresolved)"       value={`AED ${fmt(preview.excludedAmount)}`} />
                 <StatCard label="Eligible Replenishment"      value={`AED ${fmt(preview.eligibleReplenishment)}`} highlight />
               </div>
@@ -137,7 +137,7 @@ export default function ManagerPackage() {
                 <strong className="text-mbzuai-navy">What happens when you generate:</strong>
                 <ul className="mt-1.5 list-disc list-inside space-y-0.5">
                   <li>An Excel spreadsheet is created for {selectedCardholder?.cardholder_name} covering this period.</li>
-                  <li>All {preview.totalCount} eligible transactions are marked as <strong>Packaged</strong>.</li>
+                  <li>All {preview.totalCount} eligible transactions are included (already-packaged ones are regenerated).</li>
                   <li>The file is ready to download and upload to E-Services.</li>
                 </ul>
               </div>
@@ -174,7 +174,7 @@ export default function ManagerPackage() {
 
           <div className="mt-5 flex gap-3">
             <a
-              href={`http://localhost:5050/api/spreadsheets/download/${encodeURIComponent(generated.filename)}`}
+              href={`${API_BASE_URL}/spreadsheets/download/${encodeURIComponent(generated.filename)}`}
               className="px-5 py-2.5 rounded-lg bg-mbzuai-gold text-mbzuai-navy text-sm font-semibold hover:bg-mbzuai-gold/80"
             >
               Download Spreadsheet

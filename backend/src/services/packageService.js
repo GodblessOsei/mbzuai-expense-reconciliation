@@ -1,6 +1,6 @@
 const path = require("path");
 const fs = require("fs");
-const archiver = require("archiver");
+const { ZipArchive } = require("archiver");
 const pool = require("../db/pool");
 const { generateReconciliationSpreadsheet } = require("./spreadsheetService");
 
@@ -55,12 +55,12 @@ const generatePackage = async (cardholderId, reconciliationPeriodId) => {
 
   // 3. build ZIP
   const periodStr   = `${formatDateShort(periodStart)}_${formatDateShort(periodEnd)}`;
-  const zipFilename = `MBZUAI_Package_${sanitize(holderName)}_${periodStr}.zip`;
+  const zipFilename = `MBZUAI_RLA_Package_${sanitize(holderName)}_${periodStr}.zip`;
   const zipPath     = path.join(packageDir, zipFilename);
 
   await new Promise((resolve, reject) => {
     const output  = fs.createWriteStream(zipPath);
-    const archive = archiver("zip", { zlib: { level: 6 } });
+    const archive = new ZipArchive({ zlib: { level: 6 } });
 
     output.on("close", resolve);
     archive.on("error", reject);

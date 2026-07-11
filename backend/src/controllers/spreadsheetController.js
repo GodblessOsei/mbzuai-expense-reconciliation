@@ -24,7 +24,7 @@ const previewPackage = async (req, res) => {
        FROM transactions t
        WHERE t.cardholder_id            = $1
          AND t.reconciliation_period_id = $2
-         AND t.status IN ('submitted', 'reviewed')
+         AND t.status IN ('submitted', 'reviewed', 'packaged')
        ORDER BY t.purchase_date ASC`,
       [cardholder_id, reconciliation_period_id]
     );
@@ -32,6 +32,7 @@ const previewPackage = async (req, res) => {
     const transactions = result.rows;
     const submitted  = transactions.filter((t) => t.status === "submitted");
     const reviewed   = transactions.filter((t) => t.status === "reviewed");
+    const packaged   = transactions.filter((t) => t.status === "packaged");
     const totalSpend = transactions.reduce((s, t) => s + parseFloat(t.amount_aed), 0);
     const excludedAmount = transactions
       .filter((t) => t.has_unresolved_flags)
@@ -40,9 +41,10 @@ const previewPackage = async (req, res) => {
     return res.status(200).json({
       success: true,
       preview: {
-        totalCount:        transactions.length,
-        submittedCount:    submitted.length,
-        reviewedCount:     reviewed.length,
+        totalCount:            transactions.length,
+        submittedCount:        submitted.length,
+        reviewedCount:         reviewed.length,
+        packagedCount:         packaged.length,
         totalSpend,
         excludedAmount,
         eligibleReplenishment: totalSpend - excludedAmount,

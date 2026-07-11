@@ -38,7 +38,9 @@ export default function SubmissionForm({
     customDepartment: "",
     isSplitPayment: false,
     totalPaymentParts: "",
+    paymentPartNumber: "",
     overallOrderTotal: "",
+    purchaseDescription: "",
     notes: "",
   });
 
@@ -102,9 +104,12 @@ export default function SubmissionForm({
       errors.push("Please describe the category");
     }
 
+    if (!form.purchaseDescription.trim()) errors.push("Purchase description is required");
+
     if (form.isSplitPayment) {
       if (!form.totalPaymentParts.trim()) errors.push("Total payment parts is required");
-      if (!form.overallOrderTotal.trim()) errors.push("Overall order total is required.")
+      if (!form.paymentPartNumber.trim()) errors.push("Part number is required for split payments");
+      if (!form.overallOrderTotal.trim()) errors.push("Overall order total is required");
     }
     return errors;
   };
@@ -142,8 +147,10 @@ export default function SubmissionForm({
         amount_aed: form.amountAed,
         original_currency: form.currency,
         payment_method: form.paymentMethod,
+        purchase_description: form.purchaseDescription,
         is_split_payment: form.isSplitPayment,
         total_payment_parts: form.totalPaymentParts,
+        payment_part_number: form.paymentPartNumber || null,
         overall_order_total: form.overallOrderTotal,
         notes: form.notes,
         receipt_file_ids: uploadedFiles.map((f) => f.receipt_file_id),
@@ -280,23 +287,38 @@ export default function SubmissionForm({
         </div>
 
         {form.isSplitPayment && (
-          <div>
+          <div className="sm:col-span-2 grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div>
-              <label className={labelClass}>Total Number of Payment Parts</label>
-              <input 
-              name="totalPaymentParts"
-              value={form.totalPaymentParts}
-              onChange={handleChange}
-              className={inputClass}/>
+              <label className={labelClass}>Total Parts</label>
+              <input
+                name="totalPaymentParts"
+                type="number"
+                min="2"
+                value={form.totalPaymentParts}
+                onChange={handleChange}
+                className={inputClass}
+              />
             </div>
-
             <div>
-              <label className={labelClass}>Overall Total Order</label>
-              <input 
-              name="overallOrderTotal"
-              value={form.overallOrderTotal}
-              onChange={handleChange}
-              className={inputClass}/>
+              <label className={labelClass}>This Part Number</label>
+              <input
+                name="paymentPartNumber"
+                type="number"
+                min="1"
+                value={form.paymentPartNumber}
+                onChange={handleChange}
+                className={inputClass}
+                placeholder="e.g. 1"
+              />
+            </div>
+            <div>
+              <label className={labelClass}>Overall Order Total (AED)</label>
+              <input
+                name="overallOrderTotal"
+                value={form.overallOrderTotal}
+                onChange={handleChange}
+                className={inputClass}
+              />
             </div>
           </div>
         )}
@@ -396,6 +418,17 @@ export default function SubmissionForm({
             />
           </div>
         )}
+        <div className="sm:col-span-2">
+          <label className={labelClass}>Purchase Description <span className="text-red-500">*</span></label>
+          <textarea
+            name="purchaseDescription"
+            value={form.purchaseDescription}
+            onChange={handleChange}
+            rows={2}
+            placeholder="Briefly describe what was purchased and why"
+            className={inputClass}
+          />
+        </div>
         <div className="sm:col-span-2">
           <label className={labelClass}>Notes</label>
           <textarea
