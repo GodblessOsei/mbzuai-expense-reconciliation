@@ -21,3 +21,18 @@ SELECT 'Seung', '9570'
 WHERE NOT EXISTS (
   SELECT 1 FROM cardholders WHERE last_four_digits = '9570'
 );
+
+INSERT INTO budget_items (item_name) VALUES
+('Weekly Events'),
+('House Cup Events'),
+('ResLife Signature Event'),
+('House Cup Event Prize Budget'),
+('Grad Community Events'),
+('HC Employee of the Month'),
+('Subscriptions'),
+('RLA Per Diem / Incidental Expenses'),
+('Training / Meetings'),
+('ResLife Equipment'),
+('Transport'),
+('Other / Misc'),
+('Other');
