@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import apiClient from "../api/client";
 import Button from "./Button";
 
@@ -7,6 +7,7 @@ export default function ReceiptUpload({ onUploaded }) {
   const [status, setStatus] = useState("");
   const [previewFile, setPreviewFile] = useState(null);
   const [mode, setMode] = useState("separate_receipts"); // used for 2+ files
+  const inputRef = useRef(null);
 
   const isMultiple = files.length >= 2;
 
@@ -31,7 +32,11 @@ export default function ReceiptUpload({ onUploaded }) {
   };
 
   const handleRemove = (indexToRemove) => {
-    setFiles((prev) => prev.filter((_, i) => i !== indexToRemove));
+    setFiles((prev) => {
+      const next = prev.filter((_, i) => i !== indexToRemove);
+      if (next.length === 0 && inputRef.current) inputRef.current.value = "";
+      return next;
+    });
   };
 
   return (
@@ -49,6 +54,7 @@ export default function ReceiptUpload({ onUploaded }) {
             : "Click to choose files"}
         </span>
         <input
+          ref={inputRef}
           type="file"
           multiple
           accept="image/jpeg,image/png,application/pdf"
