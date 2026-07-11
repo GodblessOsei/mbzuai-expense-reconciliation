@@ -20,6 +20,7 @@ export default function SubmissionForm({
   onBack,
 }) {
   const [status, setStatus] = useState("");
+  const [budgetItems, setBudgetItems] = useState([]);
   const { cardholder } = useAuth();
 
   const [form, setForm] = useState({
@@ -31,6 +32,7 @@ export default function SubmissionForm({
     cardLastFour: "",
     paymentMethod: "RLA prepaid card",
     category: "",
+    budgetItemId: "",
     customCategory: "",
     department: "Residential Life",
     customDepartment: "",
@@ -92,6 +94,8 @@ export default function SubmissionForm({
 
     // category must be selected
     if (!form.category) errors.push("Select a category");
+    
+    if (!form.budgetItemId) errors.push("Select what the purchase was for");
 
     // if "Other", the description is required
     if (form.category === "Other" && !form.customCategory.trim()) {
@@ -133,11 +137,12 @@ export default function SubmissionForm({
         purchase_date: form.purchaseDate,
         invoice_number: form.invoiceNumber,
         category: form.category,
+        budget_item_id: form.budgetItemId,
         department: form.department,
         amount_aed: form.amountAed,
         original_currency: form.currency,
         payment_method: form.paymentMethod,
-        is_split_payement: form.isSplitPayment,
+        is_split_payment: form.isSplitPayment,
         total_payment_parts: form.totalPaymentParts,
         overall_order_total: form.overallOrderTotal,
         notes: form.notes,
@@ -154,6 +159,14 @@ export default function SubmissionForm({
       );
     }
   };
+
+  // Run this function once when the component first appears
+  useEffect(() => {
+    apiClient
+    .get("/budget-items")
+    .then((res) => setBudgetItems(res.data.budgetItems || []))
+    .catch((err) => console.error("Failed to load budget items:", err));
+  }, []);
 
   const inputClass =
     "w-full rounded-lg border border-mbzuai-navy/20 px-3 py-2 text-mbzuai-navy focus:border-mbzuai-gold focus:outline-none focus:ring-1 focus:ring-mbzuai-gold";
@@ -330,6 +343,24 @@ export default function SubmissionForm({
             <option value="Other">Other</option>
           </select>
         </div>
+
+        <div>
+          <label className={labelClass}>Purchase For</label>
+          <select
+            name="budgetItemId"
+            value={form.budgetItemId}
+            onChange={handleChange}
+            className={inputClass}
+            >
+              <option value="">Select purchase purpose</option>
+              {budgetItems.map((item) => (
+                <option key={item.budget_item_id} value={item.budget_item_id}>
+                  {item.item_name}
+                </option>
+              ))}
+            </select>
+        </div>
+
         {form.category === "Other" && (
           <div>
             <label className={labelClass}>Describe Category</label>

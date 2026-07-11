@@ -17,6 +17,7 @@ const createTransaction = async (req, res) => {
       vendor_name,
       invoice_number,
       category,
+      budget_item_id,
       department,
       amount_aed,
       original_currency,
@@ -93,6 +94,7 @@ const createTransaction = async (req, res) => {
                 vendor_name,
                 invoice_number,
                 category,
+                budget_item_id,
                 department,
                 amount_aed,
                 original_currency,
@@ -104,7 +106,7 @@ const createTransaction = async (req, res) => {
                 notes
             )
             VALUES (
-                $1, $2, NOW(), $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15
+                $1, $2, NOW(), $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16
             )
             RETURNING *`,
       [
@@ -114,6 +116,7 @@ const createTransaction = async (req, res) => {
         vendor_name,
         invoice_number,
         category,
+        budget_item_id,
         department,
         amount_aed,
         original_currency,
@@ -206,9 +209,10 @@ const createTransaction = async (req, res) => {
 const getAllTransactions = async (req, res) => {
   try {
     const result = await pool.query(
-      `SELECT t.*, c.cardholder_name
+      `SELECT t.*, c.cardholder_name, b.item_name AS budget_item_name
        FROM transactions t
        LEFT JOIN cardholders c ON c.cardholder_id = t.cardholder_id
+       LEFT JOIN budget_items b ON b.budget_item_id = t.budget_item_id
        ORDER BY t.submission_date DESC`
     );
     return res.status(200).json({ success: true, transactions: result.rows });
@@ -225,9 +229,11 @@ const getTransactionsByCardholder = async (req, res) => {
     const { cardholderId } = req.params; //cardholderId for url parameter
 
     const result = await pool.query(
-      `SELECT * FROM transactions
-       WHERE cardholder_id = $1
-       ORDER BY submission_date DESC`,
+      `SELECT t.*, b.item_name as budget_item_name
+      FROM transactions t
+      LEFT JOIN budget_items b ON b.budget_item_id = t.budget_item_id
+      WHERE t.cardholder_id = $1
+      ORDER BY t.submission_date DESC`,
       [cardholderId]
     );
 
@@ -405,6 +411,7 @@ const updateTransaction = async (req, res) => {
       "purchase_date",
       "invoice_number",
       "category",
+      "budget_item_id",
       "department",
       "amount_aed",
       "original_currency",
