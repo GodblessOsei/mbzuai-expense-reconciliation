@@ -8,6 +8,22 @@ const {
   getOrCreateReconciliationPeriod,
 } = require("../services/reconciliationPeriodService");
 
+// purchase_date is a calendar date with no meaningful time-of-day, but pg
+// returns it as a Date built from the server's local timezone. Serializing
+// it via Date.prototype.toISOString() (UTC) instead of local getters silently
+// rolls it back a day whenever the local offset is positive (e.g. Asia/Dubai,
+// UTC+4) and the stored time is midnight.
+const toLocalDateString = (date) => {
+  if (!(date instanceof Date)) return date;
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  const d = String(date.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
+};
+
+const withLocalPurchaseDate = (row) =>
+  row ? { ...row, purchase_date: toLocalDateString(row.purchase_date) } : row;
+
 const createTransaction = async (req, res) => {
   try {
     const {
@@ -221,7 +237,7 @@ const getAllTransactions = async (req, res) => {
        LEFT JOIN budget_items b ON b.budget_item_id = t.budget_item_id
        ORDER BY t.submission_date DESC`
     );
-    return res.status(200).json({ success: true, transactions: result.rows });
+    return res.status(200).json({ success: true, transactions: result.rows.map(withLocalPurchaseDate) });
   } catch (error) {
     console.error(error.message);
     return res
@@ -243,7 +259,7 @@ const getTransactionsByCardholder = async (req, res) => {
       [cardholderId]
     );
 
-    return res.status(200).json({ success: true, transactions: result.rows });
+    return res.status(200).json({ success: true, transactions: result.rows.map(withLocalPurchaseDate) });
   } catch (error) {
     console.error(error.message);
     return res
@@ -446,8 +462,15 @@ const updateTransaction = async (req, res) => {
 
     for (const field of editableFields) {
       if (Object.prototype.hasOwnProperty.call(req.body, field)) {
-        const oldValue = oldTransaction[field];
+        const rawOldValue = oldTransaction[field];
         const newValue = req.body[field];
+        // Date objects (e.g. purchase_date) must compare as local calendar-date
+        // strings, not Date.prototype.toString() (verbose, timezone-dependent)
+        // or toISOString() (UTC, rolls back a day vs. what the frontend shows
+        // for positive-offset timezones) — must match toLocalDateString above.
+        const oldValue = rawOldValue instanceof Date
+          ? toLocalDateString(rawOldValue)
+          : rawOldValue;
 
         if (String(oldValue ?? "") !== String(newValue ?? "")) {
           fieldsToUpdate[field] = newValue;
@@ -463,7 +486,7 @@ const updateTransaction = async (req, res) => {
       return res.status(200).json({
         success: true,
         message: "No changes detected",
-        transaction: oldTransaction,
+        transaction: withLocalPurchaseDate(oldTransaction),
       });
     }
 
@@ -511,7 +534,7 @@ const updateTransaction = async (req, res) => {
     return res.status(200).json({
       success: true,
       message: "Transaction updated",
-      transaction: updatedTransaction,
+      transaction: withLocalPurchaseDate(updatedTransaction),
       audit_logs_created: auditEntries.length,
     });
   } catch (error) {

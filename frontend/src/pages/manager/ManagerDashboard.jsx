@@ -141,10 +141,10 @@ function YearlySummary({ year }) {
         <ChartCard title="Planned vs Actual by Month">
           {monthlyChartData.length === 0 ? <EmptyState /> : (
             <ResponsiveContainer width="100%" height={280}>
-              <BarChart data={monthlyChartData} margin={{ left: 10 }}>
+              <BarChart data={monthlyChartData} margin={{ top: 10, left: 10 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
                 <XAxis dataKey="name" tick={{ fontSize: 12 }} />
-                <YAxis tickFormatter={(v) => `AED ${v}`} tick={{ fontSize: 11 }} />
+                <YAxis tickFormatter={(v) => Number(v).toLocaleString()} tick={{ fontSize: 11 }} width={50} />
                 <Tooltip formatter={(v) => formatAed(v)} />
                 <Legend />
                 <Bar dataKey="planned" name="Planned" fill="#4A7FC1" radius={[4, 4, 0, 0]} />
@@ -331,10 +331,10 @@ function SpendingBreakdown({ year, month }) {
       <ChartCard title="Spending by Cardholder">
         {data.byCardholder.length === 0 ? <EmptyState /> : (
           <ResponsiveContainer width="100%" height={260}>
-            <BarChart data={data.byCardholder} margin={{ left: 10 }}>
+            <BarChart data={data.byCardholder} margin={{ top: 10, left: 10 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
               <XAxis dataKey="name" tick={{ fontSize: 12 }} />
-              <YAxis tickFormatter={(v) => `AED ${v}`} tick={{ fontSize: 11 }} />
+              <YAxis tickFormatter={(v) => Number(v).toLocaleString()} tick={{ fontSize: 11 }} width={50} />
               <Tooltip formatter={(v) => formatAed(v)} />
               <Bar dataKey="totalAed" name="Total Spent" fill="#1B3A6B" radius={[4, 4, 0, 0]} />
             </BarChart>
@@ -363,10 +363,10 @@ function SpendingBreakdown({ year, month }) {
       <ChartCard title="Spending by Department">
         {data.byDepartment.length === 0 ? <EmptyState /> : (
           <ResponsiveContainer width="100%" height={260}>
-            <BarChart data={data.byDepartment} margin={{ left: 10 }}>
+            <BarChart data={data.byDepartment} margin={{ top: 10, left: 10 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
               <XAxis dataKey="name" tick={{ fontSize: 12 }} />
-              <YAxis tickFormatter={(v) => `AED ${v}`} tick={{ fontSize: 11 }} />
+              <YAxis tickFormatter={(v) => Number(v).toLocaleString()} tick={{ fontSize: 11 }} width={50} />
               <Tooltip formatter={(v) => formatAed(v)} />
               <Bar dataKey="totalAed" name="Total Spent" fill="#4A7FC1" radius={[4, 4, 0, 0]} />
             </BarChart>
