@@ -11,13 +11,15 @@ const getAnnualBudget = async (req, res) => {
          b.budget_id,
          b.year,
          b.planned_amount,
-         COALESCE(SUM(t.amount_aed), 0) AS actual_amount
+         COALESCE(
+           (SELECT SUM(amount_aed) FROM transactions
+             WHERE is_active = true AND EXTRACT(YEAR FROM purchase_date) = b.year), 0
+         ) + COALESCE(
+           (SELECT SUM(amount_aed) FROM additional_spending
+             WHERE EXTRACT(YEAR FROM date) = b.year), 0
+         ) AS actual_amount
        FROM budgets b
-       LEFT JOIN transactions t
-         ON EXTRACT(YEAR FROM t.purchase_date) = b.year
-        AND t.is_active = true
-       WHERE b.year = $1
-       GROUP BY b.budget_id`,
+       WHERE b.year = $1`,
       [year]
     );
 
@@ -88,26 +90,39 @@ const getMonthlyBudgets = async (req, res) => {
          SELECT DISTINCT EXTRACT(MONTH FROM purchase_date)::int AS month
          FROM transactions
          WHERE is_active = true AND EXTRACT(YEAR FROM purchase_date) = $1
+         UNION
+         SELECT DISTINCT EXTRACT(MONTH FROM date)::int AS month
+         FROM additional_spending
+         WHERE EXTRACT(YEAR FROM date) = $1
        ),
        relevant_months AS (
          SELECT month FROM activity_months
          UNION
          SELECT month FROM monthly_budgets WHERE year = $1
+       ),
+       transaction_totals AS (
+         SELECT EXTRACT(MONTH FROM purchase_date)::int AS month, SUM(amount_aed) AS total
+         FROM transactions
+         WHERE is_active = true AND EXTRACT(YEAR FROM purchase_date) = $1
+         GROUP BY 1
+       ),
+       additional_totals AS (
+         SELECT EXTRACT(MONTH FROM date)::int AS month, SUM(amount_aed) AS total
+         FROM additional_spending
+         WHERE EXTRACT(YEAR FROM date) = $1
+         GROUP BY 1
        )
        SELECT
          mb.monthly_budget_id,
-         $1::int                            AS year,
+         $1::int                                            AS year,
          rm.month,
-         COALESCE(mb.planned_amount, 0)      AS planned_amount,
-         COALESCE(SUM(t.amount_aed), 0)      AS actual_amount
+         COALESCE(mb.planned_amount, 0)                      AS planned_amount,
+         COALESCE(tt.total, 0) + COALESCE(at.total, 0)        AS actual_amount
        FROM relevant_months rm
        LEFT JOIN monthly_budgets mb
          ON mb.year = $1 AND mb.month = rm.month
-       LEFT JOIN transactions t
-         ON EXTRACT(YEAR  FROM t.purchase_date) = $1
-        AND EXTRACT(MONTH FROM t.purchase_date) = rm.month
-        AND t.is_active = true
-       GROUP BY mb.monthly_budget_id, rm.month, mb.planned_amount
+       LEFT JOIN transaction_totals tt ON tt.month = rm.month
+       LEFT JOIN additional_totals  at ON at.month = rm.month
        ORDER BY rm.month`,
       [year]
     );

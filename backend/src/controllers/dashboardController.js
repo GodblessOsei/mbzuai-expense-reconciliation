@@ -1,24 +1,34 @@
 const pool = require("../db/pool");
 
-const dateFilter = (year, month) => {
+const dateFilter = (column, year, month) => {
   const clauses = [];
-  if (year) clauses.push(`EXTRACT(YEAR FROM t.purchase_date) = ${parseInt(year, 10)}`);
-  if (month) clauses.push(`EXTRACT(MONTH FROM t.purchase_date) = ${parseInt(month, 10)}`);
+  if (year) clauses.push(`EXTRACT(YEAR FROM ${column}) = ${parseInt(year, 10)}`);
+  if (month) clauses.push(`EXTRACT(MONTH FROM ${column}) = ${parseInt(month, 10)}`);
   return clauses.length ? `AND ${clauses.join(" AND ")}` : "";
 };
 
+// Spending by category/department/vendor/purchase-for combines prepaid-card
+// transactions with additional_spending (e.g. cash/other payment methods),
+// so these totals reconcile with the Annual/Monthly budget "actual" figures.
+// Cardholder breakdown stays transactions-only: additional_spending isn't
+// tied to a specific cardholder.
 const spendingByCategory = async (req, res) => {
   try {
     const { year, month } = req.query;
     const result = await pool.query(
-      `SELECT
-         t.category                  AS name,
-         COALESCE(SUM(t.amount_aed), 0) AS total_aed,
+      `WITH combined AS (
+         SELECT category, amount_aed FROM transactions
+         WHERE is_active = true ${dateFilter("purchase_date", year, month)}
+         UNION ALL
+         SELECT category, amount_aed FROM additional_spending
+         WHERE true ${dateFilter("date", year, month)}
+       )
+       SELECT
+         category                    AS name,
+         COALESCE(SUM(amount_aed), 0) AS total_aed,
          COUNT(*)                    AS transaction_count
-       FROM transactions t
-       WHERE t.is_active = true
-         ${dateFilter(year, month)}
-       GROUP BY t.category
+       FROM combined
+       GROUP BY category
        ORDER BY total_aed DESC`
     );
 
@@ -47,7 +57,7 @@ const spendingByCardholder = async (req, res) => {
        FROM transactions t
        JOIN cardholders c ON c.cardholder_id = t.cardholder_id
        WHERE t.is_active = true
-         ${dateFilter(year, month)}
+         ${dateFilter("t.purchase_date", year, month)}
        GROUP BY c.cardholder_name
        ORDER BY total_aed DESC`
     );
@@ -70,14 +80,19 @@ const spendingByDepartment = async (req, res) => {
   try {
     const { year, month } = req.query;
     const result = await pool.query(
-      `SELECT
-         t.department                AS name,
-         COALESCE(SUM(t.amount_aed), 0) AS total_aed,
+      `WITH combined AS (
+         SELECT department, amount_aed FROM transactions
+         WHERE is_active = true ${dateFilter("purchase_date", year, month)}
+         UNION ALL
+         SELECT department, amount_aed FROM additional_spending
+         WHERE true ${dateFilter("date", year, month)}
+       )
+       SELECT
+         department                  AS name,
+         COALESCE(SUM(amount_aed), 0) AS total_aed,
          COUNT(*)                    AS transaction_count
-       FROM transactions t
-       WHERE t.is_active = true
-         ${dateFilter(year, month)}
-       GROUP BY t.department
+       FROM combined
+       GROUP BY department
        ORDER BY total_aed DESC`
     );
 
@@ -99,14 +114,19 @@ const spendingByVendor = async (req, res) => {
   try {
     const { year, month } = req.query;
     const result = await pool.query(
-      `SELECT
-         t.vendor_name               AS name,
-         COALESCE(SUM(t.amount_aed), 0) AS total_aed,
+      `WITH combined AS (
+         SELECT vendor_name, amount_aed FROM transactions
+         WHERE is_active = true ${dateFilter("purchase_date", year, month)}
+         UNION ALL
+         SELECT vendor_name, amount_aed FROM additional_spending
+         WHERE true ${dateFilter("date", year, month)}
+       )
+       SELECT
+         vendor_name                 AS name,
+         COALESCE(SUM(amount_aed), 0) AS total_aed,
          COUNT(*)                    AS transaction_count
-       FROM transactions t
-       WHERE t.is_active = true
-         ${dateFilter(year, month)}
-       GROUP BY t.vendor_name
+       FROM combined
+       GROUP BY vendor_name
        ORDER BY total_aed DESC`
     );
 
@@ -128,15 +148,19 @@ const spendingByBudgetItem = async (req, res) => {
   try {
     const { year, month } = req.query;
     const result = await pool.query(
-      `SELECT
+      `WITH combined AS (
+         SELECT budget_item_id, amount_aed FROM transactions
+         WHERE is_active = true ${dateFilter("purchase_date", year, month)}
+         UNION ALL
+         SELECT budget_item_id, amount_aed FROM additional_spending
+         WHERE true ${dateFilter("date", year, month)}
+       )
+       SELECT
          b.item_name                 AS name,
-         COALESCE(SUM(t.amount_aed), 0) AS total_aed,
-         COUNT(t.transaction_id)     AS transaction_count
+         COALESCE(SUM(c.amount_aed), 0) AS total_aed,
+         COUNT(c.amount_aed)         AS transaction_count
        FROM budget_items b
-       LEFT JOIN transactions t
-         ON t.budget_item_id = b.budget_item_id
-        AND t.is_active = true
-        ${dateFilter(year, month)}
+       LEFT JOIN combined c ON c.budget_item_id = b.budget_item_id
        WHERE b.is_active = true
        GROUP BY b.item_name
        ORDER BY total_aed DESC`
