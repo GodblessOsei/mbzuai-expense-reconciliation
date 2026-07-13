@@ -9,8 +9,9 @@ const menuItems = [
 ];
 
 const tabItems = [
-  { label: "Transactions", path: "/manager/transactions" },
-  { label: "Dashboard",    path: "/manager/dashboard"    },
+  { label: "Dashboard",           path: "/manager/dashboard"            },
+  { label: "Transactions",        path: "/manager/transactions"         },
+  { label: "Additional Spending", path: "/manager/additional-spending"  },
 ];
 
 export default function ManagerLayout({ children }) {
