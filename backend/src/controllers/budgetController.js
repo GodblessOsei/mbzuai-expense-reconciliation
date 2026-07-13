@@ -84,20 +84,31 @@ const getMonthlyBudgets = async (req, res) => {
     const { year } = req.params;
 
     const result = await pool.query(
-      `SELECT
+      `WITH activity_months AS (
+         SELECT DISTINCT EXTRACT(MONTH FROM purchase_date)::int AS month
+         FROM transactions
+         WHERE is_active = true AND EXTRACT(YEAR FROM purchase_date) = $1
+       ),
+       relevant_months AS (
+         SELECT month FROM activity_months
+         UNION
+         SELECT month FROM monthly_budgets WHERE year = $1
+       )
+       SELECT
          mb.monthly_budget_id,
-         mb.year,
-         mb.month,
-         mb.planned_amount,
-         COALESCE(SUM(t.amount_aed), 0) AS actual_amount
-       FROM monthly_budgets mb
+         $1::int                            AS year,
+         rm.month,
+         COALESCE(mb.planned_amount, 0)      AS planned_amount,
+         COALESCE(SUM(t.amount_aed), 0)      AS actual_amount
+       FROM relevant_months rm
+       LEFT JOIN monthly_budgets mb
+         ON mb.year = $1 AND mb.month = rm.month
        LEFT JOIN transactions t
-         ON EXTRACT(YEAR  FROM t.purchase_date) = mb.year
-        AND EXTRACT(MONTH FROM t.purchase_date) = mb.month
+         ON EXTRACT(YEAR  FROM t.purchase_date) = $1
+        AND EXTRACT(MONTH FROM t.purchase_date) = rm.month
         AND t.is_active = true
-       WHERE mb.year = $1
-       GROUP BY mb.monthly_budget_id
-       ORDER BY mb.month`,
+       GROUP BY mb.monthly_budget_id, rm.month, mb.planned_amount
+       ORDER BY rm.month`,
       [year]
     );
 

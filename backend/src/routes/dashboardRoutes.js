@@ -5,13 +5,13 @@ const {
   spendingByCardholder,
   spendingByDepartment,
   spendingByVendor,
-  spendingByEvent,
+  spendingByBudgetItem,
 } = require("../controllers/dashboardController");
 
-router.get("/spending-by-category",    spendingByCategory);
-router.get("/spending-by-cardholder",  spendingByCardholder);
-router.get("/spending-by-department",  spendingByDepartment);
-router.get("/spending-by-vendor",      spendingByVendor);
-router.get("/spending-by-event",       spendingByEvent);
+router.get("/spending-by-category",     spendingByCategory);
+router.get("/spending-by-cardholder",   spendingByCardholder);
+router.get("/spending-by-department",   spendingByDepartment);
+router.get("/spending-by-vendor",       spendingByVendor);
+router.get("/spending-by-budget-item",  spendingByBudgetItem);
 
 module.exports = router;

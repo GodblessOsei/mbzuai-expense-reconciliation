@@ -1,11 +1,15 @@
 const pool = require("../db/pool");
 
-const yearFilter = (year) =>
-  year ? `AND EXTRACT(YEAR FROM t.purchase_date) = ${parseInt(year, 10)}` : "";
+const dateFilter = (year, month) => {
+  const clauses = [];
+  if (year) clauses.push(`EXTRACT(YEAR FROM t.purchase_date) = ${parseInt(year, 10)}`);
+  if (month) clauses.push(`EXTRACT(MONTH FROM t.purchase_date) = ${parseInt(month, 10)}`);
+  return clauses.length ? `AND ${clauses.join(" AND ")}` : "";
+};
 
 const spendingByCategory = async (req, res) => {
   try {
-    const { year } = req.query;
+    const { year, month } = req.query;
     const result = await pool.query(
       `SELECT
          t.category                  AS name,
@@ -13,7 +17,7 @@ const spendingByCategory = async (req, res) => {
          COUNT(*)                    AS transaction_count
        FROM transactions t
        WHERE t.is_active = true
-         ${yearFilter(year)}
+         ${dateFilter(year, month)}
        GROUP BY t.category
        ORDER BY total_aed DESC`
     );
@@ -34,7 +38,7 @@ const spendingByCategory = async (req, res) => {
 
 const spendingByCardholder = async (req, res) => {
   try {
-    const { year } = req.query;
+    const { year, month } = req.query;
     const result = await pool.query(
       `SELECT
          c.cardholder_name           AS name,
@@ -43,7 +47,7 @@ const spendingByCardholder = async (req, res) => {
        FROM transactions t
        JOIN cardholders c ON c.cardholder_id = t.cardholder_id
        WHERE t.is_active = true
-         ${yearFilter(year)}
+         ${dateFilter(year, month)}
        GROUP BY c.cardholder_name
        ORDER BY total_aed DESC`
     );
@@ -64,7 +68,7 @@ const spendingByCardholder = async (req, res) => {
 
 const spendingByDepartment = async (req, res) => {
   try {
-    const { year } = req.query;
+    const { year, month } = req.query;
     const result = await pool.query(
       `SELECT
          t.department                AS name,
@@ -72,7 +76,7 @@ const spendingByDepartment = async (req, res) => {
          COUNT(*)                    AS transaction_count
        FROM transactions t
        WHERE t.is_active = true
-         ${yearFilter(year)}
+         ${dateFilter(year, month)}
        GROUP BY t.department
        ORDER BY total_aed DESC`
     );
@@ -93,7 +97,7 @@ const spendingByDepartment = async (req, res) => {
 
 const spendingByVendor = async (req, res) => {
   try {
-    const { year } = req.query;
+    const { year, month } = req.query;
     const result = await pool.query(
       `SELECT
          t.vendor_name               AS name,
@@ -101,7 +105,7 @@ const spendingByVendor = async (req, res) => {
          COUNT(*)                    AS transaction_count
        FROM transactions t
        WHERE t.is_active = true
-         ${yearFilter(year)}
+         ${dateFilter(year, month)}
        GROUP BY t.vendor_name
        ORDER BY total_aed DESC`
     );
@@ -120,9 +124,9 @@ const spendingByVendor = async (req, res) => {
   }
 };
 
-const spendingByEvent = async (req, res) => {
+const spendingByBudgetItem = async (req, res) => {
   try {
-    const { year } = req.query;
+    const { year, month } = req.query;
     const result = await pool.query(
       `SELECT
          b.item_name                 AS name,
@@ -132,7 +136,7 @@ const spendingByEvent = async (req, res) => {
        LEFT JOIN transactions t
          ON t.budget_item_id = b.budget_item_id
         AND t.is_active = true
-        ${year ? `AND EXTRACT(YEAR FROM t.purchase_date) = ${parseInt(year, 10)}` : ""}
+        ${dateFilter(year, month)}
        WHERE b.is_active = true
        GROUP BY b.item_name
        ORDER BY total_aed DESC`
@@ -147,7 +151,7 @@ const spendingByEvent = async (req, res) => {
       })),
     });
   } catch (error) {
-    console.error("spendingByEvent error:", error);
+    console.error("spendingByBudgetItem error:", error);
     return res.status(500).json({ success: false, message: "Server error" });
   }
 };
@@ -157,5 +161,5 @@ module.exports = {
   spendingByCardholder,
   spendingByDepartment,
   spendingByVendor,
-  spendingByEvent,
+  spendingByBudgetItem,
 };
