@@ -6,6 +6,7 @@ const menuItems = [
   { label: "Reconciliation Spreadsheets", path: "/manager/packages"          },
   { label: "Download Package",            path: "/manager/package-download"  },
   { label: "Set Budget",                  path: "/manager/budget"            },
+  { label: "Manage Budget Items",         path: "/manager/budget-items"      },
 ];
 
 const tabItems = [

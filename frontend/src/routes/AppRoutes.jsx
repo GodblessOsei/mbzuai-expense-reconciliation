@@ -9,6 +9,7 @@ import ManagerSpreadsheet from "../pages/manager/ManagerSpreadsheet";
 import ManagerPackageDownload from "../pages/manager/ManagerPackageDownload";
 import ManagerBudget from "../pages/manager/ManagerBudget";
 import ManagerAdditionalSpending from "../pages/manager/ManagerAdditionalSpending";
+import ManagerBudgetItems from "../pages/manager/ManagerBudgetItems";
 
 export default function AppRoutes() {
   return (
@@ -25,6 +26,7 @@ export default function AppRoutes() {
         <Route path="/manager/dashboard" element={<ManagerDashboard />} />
         <Route path="/manager/budget" element={<ManagerBudget />} />
         <Route path="/manager/additional-spending" element={<ManagerAdditionalSpending />} />
+        <Route path="/manager/budget-items" element={<ManagerBudgetItems />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </BrowserRouter>
