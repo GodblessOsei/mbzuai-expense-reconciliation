@@ -7,6 +7,7 @@ import SubmissionPage from "../pages/rla/SubmissionPage";
 import ManagerTransactions from "../pages/manager/ManagerTransactions";
 import ManagerSpreadsheet from "../pages/manager/ManagerSpreadsheet";
 import ManagerPackageDownload from "../pages/manager/ManagerPackageDownload";
+import ManagerBudget from "../pages/manager/ManagerBudget";
 
 export default function AppRoutes() {
   return (
@@ -21,6 +22,7 @@ export default function AppRoutes() {
         <Route path="/manager/packages" element={<ManagerSpreadsheet />} />
         <Route path="/manager/package-download" element={<ManagerPackageDownload />} />
         <Route path="/manager/dashboard" element={<ManagerDashboard />} />
+        <Route path="/manager/budget" element={<ManagerBudget />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </BrowserRouter>
