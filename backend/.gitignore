@@ -1,2 +1,5 @@
 node_modules
 .env
+
+# Uploaded receipts and generated documents — real cardholder data, never commit
+uploads
