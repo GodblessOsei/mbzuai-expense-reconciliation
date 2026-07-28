@@ -74,10 +74,19 @@ CREATE TABLE flags (
 
 CREATE TABLE budgets (
     budget_id      SERIAL PRIMARY KEY,
-    year           INTEGER       NOT NULL,
+    year           INTEGER       NOT NULL UNIQUE,
     planned_amount NUMERIC(12,2) NOT NULL,
     actual_amount  NUMERIC(12,2) NOT NULL DEFAULT 0
 );
+
+CREATE TABLE monthly_budgets (
+    monthly_budget_id SERIAL PRIMARY KEY,
+    year           INTEGER       NOT NULL,
+    month          INTEGER       NOT NULL CHECK (month BETWEEN 1 AND 12),
+    planned_amount NUMERIC(12,2) NOT NULL,
+    UNIQUE (year, month)
+);
+
 
 CREATE TABLE refunds (
     refund_id      SERIAL PRIMARY KEY,
@@ -104,6 +113,7 @@ CREATE TABLE audit_logs (
 
 CREATE TABLE additional_spending (
     additional_spending_id SERIAL PRIMARY KEY,
+    budget_item_id INTEGER REFERENCES budget_items(budget_item_id),
     date             DATE          NOT NULL,
     vendor_name      VARCHAR(255)  NOT NULL,
     department       VARCHAR(100)  NOT NULL,

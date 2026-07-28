@@ -5,11 +5,14 @@ import Layout from "./Layout";
 const menuItems = [
   { label: "Reconciliation Spreadsheets", path: "/manager/packages"          },
   { label: "Download Package",            path: "/manager/package-download"  },
+  { label: "Set Budget",                  path: "/manager/budget"            },
+  { label: "Manage Budget Items",         path: "/manager/budget-items"      },
 ];
 
 const tabItems = [
-  { label: "Transactions", path: "/manager/transactions" },
-  { label: "Dashboard",    path: "/manager/dashboard"    },
+  { label: "Dashboard",           path: "/manager/dashboard"            },
+  { label: "Transactions",        path: "/manager/transactions"         },
+  { label: "Additional Spending", path: "/manager/additional-spending"  },
 ];
 
 export default function ManagerLayout({ children }) {
