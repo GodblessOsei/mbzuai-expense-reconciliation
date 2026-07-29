@@ -1,8 +1,7 @@
-const fs = require("fs");
 const path = require("path");
 const { PDFDocument } = require("pdf-lib");
 const { fileTypeFromBuffer } = require("file-type");
-const uploadDir = path.join(__dirname, "..", "..", "uploads");
+const storage = require("./storageService");
 
 const formatDateForFilename = (dateString) => {
   const date = new Date(dateString);
@@ -19,28 +18,8 @@ const sanitizeFilenamePart = (value) => {
     .trim();
 };
 
-const getUniqueFilePath = (baseFilePath) => {
-  if (!fs.existsSync(baseFilePath)) {
-    return baseFilePath;
-  }
-
-  const dir = path.dirname(baseFilePath);
-  const ext = path.extname(baseFilePath);
-  const baseName = path.basename(baseFilePath, ext);
-
-  let counter = 1;
-
-  while (true) {
-    const candidate = path.join(
-      dir,
-      `${baseName}_${String(counter).padStart(2, "0")}${ext}`
-    );
-    if (!fs.existsSync(candidate)) {
-      return candidate;
-    }
-    counter++;
-  }
-};
+// Collision handling ("_01", "_02") now lives in the storage driver as
+// getAvailableKey — deciding whether a name is taken is a storage question.
 
 const generateCombinedReceiptPdf = async ({
   filePaths,
@@ -51,20 +30,30 @@ const generateCombinedReceiptPdf = async ({
 }) => {
   const pdfDoc = await PDFDocument.create();
 
-  for (const filePath of filePaths) {
-    const fileBytes = fs.readFileSync(filePath);
-    const ext = path.extname(filePath).toLowerCase();
+  // `filePaths` are storage keys. The name is kept for now so the existing
+  // callers stay unchanged; normalizeKey absorbs any rows still holding a
+  // legacy absolute path.
+  for (const fileKey of filePaths) {
+    const key = storage.normalizeKey(fileKey, storage.KEY_PREFIX.RECEIPTS);
+    const fileBytes = await storage.getFile(key);
 
-    if (ext === ".pdf") {
+    // Detect the real format from the file's magic bytes, never the extension.
+    // Phone camera rolls and messaging apps routinely hand us a JPEG named
+    // .png; embedPng on JPEG bytes throws, so trusting the name would fail a
+    // manager's PDF for a file that is perfectly valid.
+    const detected = await fileTypeFromBuffer(fileBytes);
+    const mimeType = detected?.mime;
+
+    if (mimeType === "application/pdf") {
       const sourcePdf = await PDFDocument.load(fileBytes);
       const copiedPages = await pdfDoc.copyPages(
         sourcePdf,
         sourcePdf.getPageIndices()
       );
       copiedPages.forEach((page) => pdfDoc.addPage(page));
-    } else if (ext === ".jpg" || ext === ".jpeg" || ext === ".png") {
+    } else if (mimeType === "image/png" || mimeType === "image/jpeg") {
       const image =
-        ext === ".png"
+        mimeType === "image/png"
           ? await pdfDoc.embedPng(fileBytes)
           : await pdfDoc.embedJpg(fileBytes);
       const page = pdfDoc.addPage([image.width, image.height]);
@@ -75,7 +64,9 @@ const generateCombinedReceiptPdf = async ({
         height: image.height,
       });
     } else {
-      throw new Error(`Unsupported file type: ${ext}`);
+      throw new Error(
+        `Unsupported file type for ${key}: ${mimeType || "unrecognised content"}`
+      );
     }
   }
   const formattedDate = formatDateForFilename(purchaseDate);
@@ -84,14 +75,16 @@ const generateCombinedReceiptPdf = async ({
   const safeCardHolder = sanitizeFilenamePart(cardholderName);
 
   const filename = `${formattedDate}_${safeVendor}_${formattedAmount}AED_${safeCardHolder}.pdf`;
-  const outputPath = getUniqueFilePath(path.join(uploadDir, filename));
+  const key = await storage.getAvailableKey(
+    storage.buildKey(storage.KEY_PREFIX.GENERATED, filename)
+  );
 
   const pdfBytes = await pdfDoc.save();
-  fs.writeFileSync(outputPath, pdfBytes);
+  await storage.saveFile(key, Buffer.from(pdfBytes));
 
   return {
-    filename: path.basename(outputPath),
-    filePath: outputPath,
+    filename: path.posix.basename(key),
+    key,
   };
 };
 

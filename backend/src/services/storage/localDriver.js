@@ -50,30 +50,11 @@ const deleteFile = async (key) => {
 };
 
 // Streaming read, used by the download endpoints so a large ZIP never has to
-// sit in memory in full.
-const createReadStream = (key) => {
+// sit in memory in full. Async even though opening a local file is instant —
+// remote drivers must await a network call before they have a stream, and the
+// interface has to be honest about that.
+const createReadStream = async (key) => {
   return fsSync.createReadStream(resolveKey(key));
-};
-
-// Returns a key that is not yet taken, appending _01, _02, ... on collision.
-// Receipt PDFs are named from date+vendor+amount+cardholder, so two different
-// transactions can legitimately produce the same name.
-const getAvailableKey = async (key) => {
-  if (!(await fileExists(key))) return key;
-
-  const dir = path.posix.dirname(key);
-  const ext = path.posix.extname(key);
-  const base = path.posix.basename(key, ext);
-
-  let counter = 1;
-  while (true) {
-    const candidate = path.posix.join(
-      dir,
-      `${base}_${String(counter).padStart(2, "0")}${ext}`
-    );
-    if (!(await fileExists(candidate))) return candidate;
-    counter++;
-  }
 };
 
 module.exports = {
@@ -82,5 +63,4 @@ module.exports = {
   fileExists,
   deleteFile,
   createReadStream,
-  getAvailableKey,
 };

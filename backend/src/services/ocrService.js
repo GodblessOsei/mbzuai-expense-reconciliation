@@ -1,7 +1,7 @@
 require("dotenv").config();
-const fs = require("fs");
 const OpenAI = require("openai");
 const { pdf } = require("pdf-to-img");
+const storage = require("./storageService");
 
 const client = new OpenAI({
   baseURL: "https://openrouter.ai/api/v1",
@@ -76,8 +76,10 @@ One object per receipt. Use an empty string for any missing field (false for isH
 //   extension (uploads are often mislabeled, e.g. JPEG named .png).
 // - PDFs: detected by the %PDF magic bytes, then each page is rendered to a PNG image
 //   block (the gpt4o-mini accepts png/jpeg/gif/webp only — NOT PDF).
-const fileToImageBlocks = async (filePath) => {
-  const buffer = fs.readFileSync(filePath);
+const fileToImageBlocks = async (fileKey) => {
+  const buffer = await storage.getFile(
+    storage.normalizeKey(fileKey, storage.KEY_PREFIX.RECEIPTS)
+  );
 
   const isPdf =
     buffer[0] === 0x25 && // %
@@ -101,7 +103,9 @@ const fileToImageBlocks = async (filePath) => {
 
   // PDF -> render each page to a PNG image block
   const blocks = [];
-  const document = await pdf(filePath, { scale: 2 }); // scale up for legibility
+  // pdf-to-img accepts a Buffer as well as a path, so the bytes we already
+  // fetched are reused — no temp file needed when storage is remote.
+  const document = await pdf(buffer, { scale: 2 }); // scale up for legibility
   for await (const pageImage of document) {
     blocks.push({
       type: "image_url",

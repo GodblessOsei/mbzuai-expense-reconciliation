@@ -1,4 +1,4 @@
-const fs = require("fs");
+const storage = require("../services/storageService");
 const { generatePackage } = require("../services/packageService");
 const { getOrCreateReconciliationPeriod } = require("../services/reconciliationPeriodService");
 
@@ -26,14 +26,14 @@ const downloadPackage = async (req, res) => {
       return res.status(400).json({ message: "cardholder_id and reconciliation_period_id are required" });
     }
 
-    const { zipPath, zipFilename, receiptCount } = await generatePackage(
+    const { zipKey, zipFilename, receiptCount } = await generatePackage(
       cardholder_id,
       reconciliation_period_id
     );
 
     res.setHeader("Content-Disposition", `attachment; filename="${zipFilename}"`);
     res.setHeader("Content-Type", "application/zip");
-    const stream = fs.createReadStream(zipPath);
+    const stream = await storage.createReadStream(zipKey);
     stream.on("error", (err) => {
       console.error("stream error:", err);
       res.status(500).end();

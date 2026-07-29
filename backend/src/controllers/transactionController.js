@@ -1,8 +1,8 @@
 const pool = require("../db/pool");
 const path = require("path");
-const fs = require("fs");
 const crypto = require("crypto");
 
+const storage = require("../services/storageService");
 const { generateCombinedReceiptPdf } = require("../services/pdfService");
 const {
   getOrCreateReconciliationPeriod,
@@ -297,7 +297,11 @@ const generateTransactionPdf = async (req, res) => {
         .status(400)
         .json({ success: false, message: "No receipt files to combine" });
     }
-    const filePaths = filesResult.rows.map((r) => r.file_path);
+    // file_path holds a storage key; normalizeKey absorbs any legacy rows that
+    // still hold an absolute path from before the storage refactor.
+    const filePaths = filesResult.rows.map((r) =>
+      storage.normalizeKey(r.file_path, storage.KEY_PREFIX.RECEIPTS)
+    );
 
     console.log("generator is:", typeof generateCombinedReceiptPdf);
     console.log("calling generator with:", {
@@ -308,7 +312,7 @@ const generateTransactionPdf = async (req, res) => {
       cardholderName: tx.cardholder_name,
     });
     // call combined pdf generator from the service
-    const { filePath } = await generateCombinedReceiptPdf({
+    const { key } = await generateCombinedReceiptPdf({
       filePaths,
       purchaseDate: tx.purchase_date,
       vendorName: tx.vendor_name,
@@ -316,17 +320,17 @@ const generateTransactionPdf = async (req, res) => {
       cardholderName: tx.cardholder_name,
     });
 
-    console.log("generator returned:", filePath);
+    console.log("generator returned:", key);
 
-    // store the path on the transaction
+    // store the storage key on the transaction
     await pool.query(
       `UPDATE transactions SET pdf_path = $1 WHERE transaction_id = $2`,
-      [filePath, id]
+      [key, id]
     );
 
     return res
       .status(200)
-      .json({ success: true, message: "PDF generated", pdf_path: filePath });
+      .json({ success: true, message: "PDF generated", pdf_path: key });
   } catch (error) {
     console.error("PDF generation error:", error.message);
     console.error("PDF generation error (full):", error);
@@ -353,19 +357,34 @@ const getTransactionPdf = async (req, res) => {
         .json({ success: false, message: "No PDF for this transaction" });
     }
 
-    const pdfPath = result.rows[0].pdf_path;
-    if (!fs.existsSync(pdfPath)) {
+    const pdfKey = storage.normalizeKey(
+      result.rows[0].pdf_path,
+      storage.KEY_PREFIX.GENERATED
+    );
+    if (!(await storage.fileExists(pdfKey))) {
       return res
         .status(404)
-        .json({ success: false, message: "PDF file missing on disk" });
+        .json({ success: false, message: "PDF file missing from storage" });
     }
 
-    if (download) {
-      return res.download(pdfPath); // forces download with original filename
-    }
-    return res.sendFile(pdfPath); // opens/streams for viewing
+    // res.download/res.sendFile need a filesystem path, which no longer exists
+    // as a concept here — stream the bytes and set the headers ourselves.
+    // `inline` opens it in the browser, `attachment` forces a download.
+    const filename = path.posix.basename(pdfKey);
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader(
+      "Content-Disposition",
+      `${download ? "attachment" : "inline"}; filename="${filename}"`
+    );
+
+    const stream = await storage.createReadStream(pdfKey);
+    stream.on("error", (err) => {
+      console.error("getTransactionPdf stream error:", err);
+      res.status(500).end();
+    });
+    return stream.pipe(res);
   } catch (error) {
-    console.error(error.message);
+    console.error("getTransactionPdf error:", error);
     return res
       .status(500)
       .json({ success: false, message: "Failed to retrieve PDF" });
