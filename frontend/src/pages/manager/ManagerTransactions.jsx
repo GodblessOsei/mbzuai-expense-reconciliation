@@ -1,6 +1,6 @@
 // frontend/src/pages/manager/ManagerTransactions.jsx
 import { useState, useEffect } from "react";
-import apiClient, { API_BASE_URL } from "../../api/client";
+import apiClient, { openAuthedFile, downloadAuthedFile } from "../../api/client";
 import ManagerLayout from "../../components/ManagerLayout";
 
 export default function ManagerTransactions() {
@@ -333,20 +333,35 @@ export default function ManagerTransactions() {
                   <td className="px-5 py-4">
                     {t.pdf_path ? (
                       <div className="flex gap-3 text-sm">
-                        <a
-                          href={`${API_BASE_URL}/transactions/${t.transaction_id}/pdf`}
-                          target="_blank"
-                          rel="noreferrer"
+                        {/* These were plain <a href> links. A browser
+                            navigating to a URL sends no Authorization header,
+                            so they broke once the receipt archive became
+                            genuinely manager-only — fetch with the token. */}
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            openAuthedFile(
+                              `/transactions/${t.transaction_id}/pdf`
+                            ).catch((err) => alert(err.message));
+                          }}
                           className="text-mbzuai-navy underline hover:text-mbzuai-gold"
                         >
                           View
-                        </a>
-                        <a
-                          href={`${API_BASE_URL}/transactions/${t.transaction_id}/pdf?download=true`}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            downloadAuthedFile(
+                              `/transactions/${t.transaction_id}/pdf?download=true`,
+                              `transaction-${t.transaction_id}.pdf`
+                            ).catch((err) => alert(err.message));
+                          }}
                           className="text-mbzuai-navy underline hover:text-mbzuai-gold"
                         >
                           Download
-                        </a>
+                        </button>
                       </div>
                     ) : (
                       <button

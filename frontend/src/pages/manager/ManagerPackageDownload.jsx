@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import apiClient, { API_BASE_URL } from "../../api/client";
+import apiClient, { API_BASE_URL, authHeaders } from "../../api/client";
 import ManagerLayout from "../../components/ManagerLayout";
 
 const fmt = (n) =>
@@ -52,9 +52,12 @@ export default function ManagerPackageDownload() {
     setDownloading(true);
     setError("");
     try {
+      // authHeaders() carries the session token — this is a raw fetch rather
+      // than apiClient (it needs the streamed zip), so the header has to be
+      // added by hand or the request comes back 401.
       const res = await fetch(`${API_BASE_URL}/packages/download`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...authHeaders() },
         body: JSON.stringify({
           cardholder_id: Number(cardholderId),
           reconciliation_period_id: currentPeriod.reconciliationPeriodId,

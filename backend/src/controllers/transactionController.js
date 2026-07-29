@@ -26,8 +26,13 @@ const withLocalPurchaseDate = (row) =>
 
 const createTransaction = async (req, res) => {
   try {
+    // WHO submitted comes from the verified session, never the request body.
+    // Cards are shared, so this is the only accountability anchor left: if a
+    // client could name the submitter, anyone could file expenses as anyone
+    // else and the audit trail would be decorative.
+    const user_id = req.user.userId;
+
     const {
-      user_id,
       cardholder_id,
       purchase_date,
       vendor_name,
@@ -51,8 +56,9 @@ const createTransaction = async (req, res) => {
       purchase_description,
     } = req.body;
     // required-field validation
+    // user_id is not validated here — it comes from the session, so it cannot
+    // be missing without requireAuth having already rejected the request.
     if (
-      !user_id ||
       !cardholder_id ||
       !purchase_date ||
       !vendor_name ||
@@ -243,6 +249,61 @@ const getAllTransactions = async (req, res) => {
     return res
       .status(500)
       .json({ success: false, message: "Failed to fetch transactions" });
+  }
+};
+
+// GET /api/transactions/mine
+//
+// An RLA sees the UNION of two different things:
+//
+//   1. everything THEY submitted  -- wherever it was charged
+//   2. everything charged to THEIR card -- whoever submitted it
+//
+// Both are needed and they answer different questions. The AED 5,000 limit is
+// a fact about the CARD, so it must include spending someone else put on it.
+// "Did I file my receipts on time" is a fact about the SUBMITTER, so it must
+// include what they put on someone else's card. Collapsing these into one list
+// would eventually mislead someone about their remaining balance.
+//
+// Scoped entirely from the session — no id in the URL for anyone to change.
+const getMyTransactions = async (req, res) => {
+  try {
+    const userId = req.user.userId;
+
+    const result = await pool.query(
+      `SELECT t.*,
+              c.cardholder_name,
+              c.last_four_digits,
+              b.item_name AS budget_item_name,
+              submitter.full_name AS submitted_by_name,
+              (t.user_id = $1) AS submitted_by_me,
+              (c.assigned_user_id = $1) AS on_my_card
+         FROM transactions t
+         LEFT JOIN cardholders c  ON c.cardholder_id = t.cardholder_id
+         LEFT JOIN budget_items b ON b.budget_item_id = t.budget_item_id
+         LEFT JOIN users submitter ON submitter.user_id = t.user_id
+        WHERE t.user_id = $1
+           OR t.cardholder_id IN (
+                SELECT cardholder_id
+                  FROM cardholders
+                 WHERE assigned_user_id = $1
+                   -- Visibility starts the day the card became theirs, so a
+                   -- new holder cannot browse the previous holder's receipts.
+                   AND (assigned_at IS NULL OR t.purchase_date >= assigned_at)
+              )
+        ORDER BY t.submission_date DESC`,
+      [userId]
+    );
+
+    return res.status(200).json({
+      success: true,
+      transactions: result.rows.map(withLocalPurchaseDate),
+    });
+  } catch (error) {
+    console.error("getMyTransactions error:", error);
+    return res
+      .status(500)
+      .json({ success: false, message: "Failed to fetch your transactions" });
   }
 };
 
@@ -538,15 +599,18 @@ const updateTransaction = async (req, res) => {
           timestamp
         )
         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW())`,
+        // Both the id and the name are stored on purpose: user_id answers
+        // "who", and the name is a snapshot that survives a later rename or a
+        // deactivated account. Neither is accepted from the request body.
         [
           editSessionId,
           id,
-          null,
+          req.user.userId,
           "UPDATE",
           entry.field_name,
           entry.old_value,
           entry.new_value,
-          "manager",
+          req.user.fullName,
         ]
       );
     }
@@ -625,6 +689,7 @@ const getTransactionAuditLogs = async (req, res) => {
 
 module.exports = {
   createTransaction,
+  getMyTransactions,
   getTransactionsByCardholder,
   getAllTransactions,
   generateTransactionPdf,

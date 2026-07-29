@@ -133,18 +133,22 @@ export default function ManagerAdditionalSpending() {
               <th className="px-5 py-3 font-medium">Category</th>
               <th className="px-5 py-3 font-medium">Amount</th>
               <th className="px-5 py-3 font-medium">Payment Method</th>
+              {/* The whole reason managers have individual logins rather than
+                  one shared password: a disputed figure needs a name that was
+                  proven at sign-in, not typed into a box. */}
+              <th className="px-5 py-3 font-medium">Added by</th>
             </tr>
           </thead>
           <tbody>
             {loading ? (
               <tr>
-                <td colSpan={7} className="px-5 py-10 text-center text-mbzuai-navy/50">
+                <td colSpan={8} className="px-5 py-10 text-center text-mbzuai-navy/50">
                   Loading…
                 </td>
               </tr>
             ) : entries.length === 0 ? (
               <tr>
-                <td colSpan={7} className="px-5 py-10 text-center text-mbzuai-navy/50">
+                <td colSpan={8} className="px-5 py-10 text-center text-mbzuai-navy/50">
                   No additional spending yet. Click "Add Additional Spending" to record your first entry.
                 </td>
               </tr>
@@ -160,6 +164,13 @@ export default function ManagerAdditionalSpending() {
                   <td className="px-5 py-4 text-mbzuai-navy/70">{e.category}</td>
                   <td className="px-5 py-4 text-mbzuai-navy/70">AED {e.amountAed}</td>
                   <td className="px-5 py-4 text-mbzuai-navy/70">{e.paymentMethod}</td>
+                  <td className="px-5 py-4 text-mbzuai-navy/70">
+                    {/* Null for rows entered before logins existed — there is
+                        genuinely no record, and inventing one would be worse. */}
+                    {e.createdByName || (
+                      <span className="text-mbzuai-navy/40 italic">unknown</span>
+                    )}
+                  </td>
                 </tr>
               ))
             )}

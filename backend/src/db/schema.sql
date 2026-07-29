@@ -1,14 +1,33 @@
+-- A person who can sign in. Identity only -- never card permissions.
 CREATE TABLE users (
-    user_id SERIAL PRIMARY KEY,
-    role TEXT
+    user_id       SERIAL PRIMARY KEY,
+    full_name     TEXT NOT NULL,
+    email         TEXT NOT NULL UNIQUE,   -- always stored lowercase
+    password_hash TEXT NOT NULL,
+    role          TEXT NOT NULL CHECK (role IN ('rla', 'manager')),
+    must_change_password BOOLEAN NOT NULL DEFAULT TRUE,
+    -- People are switched off, never deleted: transactions and audit_logs
+    -- reference user_id, and financial history must not change retroactively.
+    is_active      BOOLEAN   NOT NULL DEFAULT TRUE,
+    created_at     TIMESTAMP NOT NULL DEFAULT NOW(),
+    deactivated_at TIMESTAMP
 );
 
+-- A physical prepaid card. A card is a thing in its own right, NOT a property
+-- of a person: it outlives whoever currently holds it and keeps its history
+-- when reassigned.
 CREATE TABLE cardholders (
     cardholder_id SERIAL PRIMARY KEY,
-    -- since for now every user has only one card we could use UNIQUE REFERENCES 
-    user_id INTEGER REFERENCES users(user_id),
-    cardholder_name TEXT,
-    last_four_digits VARCHAR(4)
+    -- Who currently holds this card. This drives DEFAULTS and VISIBILITY only.
+    -- It is never a permission: any RLA may spend on any card, so nothing in
+    -- the submission path may filter on it.
+    assigned_user_id INTEGER REFERENCES users(user_id),
+    cardholder_name  TEXT,
+    last_four_digits VARCHAR(4),
+    is_active        BOOLEAN NOT NULL DEFAULT TRUE,
+    -- When the current holder received the card. Card-based visibility starts
+    -- here so a new holder cannot browse the previous holder's receipts.
+    assigned_at      DATE
 );
 
 CREATE TABLE reconciliation_periods (
@@ -26,7 +45,12 @@ CREATE TABLE budget_items (
 
 CREATE TABLE transactions (
     transaction_id SERIAL PRIMARY KEY,
-    user_id INTEGER REFERENCES users(user_id),
+    -- WHO submitted this. Always taken from the signed-in session, NEVER from
+    -- the request body -- it is the only accountability anchor now that cards
+    -- are shared, so a spoofable value here would make the audit trail fiction.
+    user_id INTEGER NOT NULL REFERENCES users(user_id),
+    -- WHICH card was charged. Chosen by the submitter on the form; may belong
+    -- to someone else. user_id != cardholder_id is a normal, expected case.
     cardholder_id INTEGER REFERENCES cardholders(cardholder_id),
     status VARCHAR(20) DEFAULT 'submitted',
     submission_date TIMESTAMP,
@@ -114,6 +138,10 @@ CREATE TABLE audit_logs (
 CREATE TABLE additional_spending (
     additional_spending_id SERIAL PRIMARY KEY,
     budget_item_id INTEGER REFERENCES budget_items(budget_item_id),
+    -- Which manager entered this. Stamped from the session, never sent by the
+    -- client, so "who added this figure" is a fact rather than a claim.
+    created_by_user_id INTEGER REFERENCES users(user_id),
+    created_at       TIMESTAMP     NOT NULL DEFAULT NOW(),
     date             DATE          NOT NULL,
     vendor_name      VARCHAR(255)  NOT NULL,
     department       VARCHAR(100)  NOT NULL,

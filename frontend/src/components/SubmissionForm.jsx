@@ -21,7 +21,15 @@ export default function SubmissionForm({
 }) {
   const [status, setStatus] = useState("");
   const [budgetItems, setBudgetItems] = useState([]);
-  const { cardholder } = useAuth();
+  const { user, assignedCard } = useAuth();
+
+  // Whose card was used. This is a fact about the PURCHASE, not about who is
+  // signed in — RLAs are free to use each other's cards, so it is asked here
+  // rather than being inferred from identity.
+  const [cardholders, setCardholders] = useState([]);
+  const [cardholderId, setCardholderId] = useState(
+    assignedCard ? String(assignedCard.cardholderId) : ""
+  );
 
   const [form, setForm] = useState({
     vendorName: "",
@@ -72,6 +80,7 @@ export default function SubmissionForm({
   const getFieldErrors = () => {
     const errors = [];
 
+    if (!cardholderId) errors.push("Select whose card was used");
     if (!form.vendorName.trim()) errors.push("Vendor name is required");
     if (!form.purchaseDate) errors.push("Purchase date is required");
     if (!form.invoiceNumber.trim()) errors.push("Invoice number is required");
@@ -133,9 +142,12 @@ export default function SubmissionForm({
     }
     try {
       setStatus("Submitting...");
+      // No user_id is sent. The backend reads the submitter from the verified
+      // session — a submitter the client could name would be a claim, not a
+      // fact, and it is the only accountability anchor now that cards are
+      // shared.
       const res = await apiClient.post("/transactions/final-submit", {
-        user_id: 1,
-        cardholder_id: cardholder.cardholder_id,
+        cardholder_id: Number(cardholderId),
         card_last_four: form.cardLastFour,
         card_digits_not_shown: cardDigitsNotShown,
         vendor_name: form.vendorName,
@@ -175,6 +187,15 @@ export default function SubmissionForm({
     .catch((err) => console.error("Failed to load budget items:", err));
   }, []);
 
+  // Every active card, unfiltered. Deliberately not narrowed to this user's
+  // own card — borrowing is a supported case, not an exception to work around.
+  useEffect(() => {
+    apiClient
+      .get("/cardholders")
+      .then((res) => setCardholders(res.data.cardholders || []))
+      .catch((err) => console.error("Failed to load cardholders:", err));
+  }, []);
+
   const inputClass =
     "w-full rounded-lg border border-mbzuai-navy/20 px-3 py-2 text-mbzuai-navy focus:border-mbzuai-gold focus:outline-none focus:ring-1 focus:ring-mbzuai-gold";
   const labelClass = "block text-sm font-medium text-mbzuai-navy/70 mb-1";
@@ -186,10 +207,41 @@ export default function SubmissionForm({
       </h2>
       <p className="mt-1 text-sm text-mbzuai-navy/60">
         Submitting as{" "}
-        <span className="font-semibold text-mbzuai-navy">
-          {cardholder.cardholder_name}
-        </span>
+        <span className="font-semibold text-mbzuai-navy">{user.fullName}</span>
       </p>
+
+      {/* Whose card was used. Defaults to their own so the ordinary case is
+          one click, but any card can be chosen — the client is explicit that
+          RLAs use each other's cards. */}
+      <div className="mt-5">
+        <label htmlFor="cardholderId" className={labelClass}>
+          Whose card did you use?
+        </label>
+        <select
+          id="cardholderId"
+          value={cardholderId}
+          onChange={(e) => setCardholderId(e.target.value)}
+          className={inputClass}
+        >
+          <option value="">Select a card…</option>
+          {cardholders.map((c) => (
+            <option key={c.cardholder_id} value={c.cardholder_id}>
+              {c.cardholder_name} •••• {c.last_four_digits}
+              {assignedCard && c.cardholder_id === assignedCard.cardholderId
+                ? " (yours)"
+                : ""}
+            </option>
+          ))}
+        </select>
+        {assignedCard &&
+          cardholderId &&
+          Number(cardholderId) !== assignedCard.cardholderId && (
+            <p className="mt-2 text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+              This will be recorded against someone else’s card. It will still
+              be filed under your name as the submitter.
+            </p>
+          )}
+      </div>
 
       {reviewNotices.length > 0 && (
         <div className="mt-4 bg-amber-50 border border-amber-200 rounded-lg p-4">

@@ -17,7 +17,7 @@ const STEP_LABELS = {
 };
 
 export default function SubmissionPage() {
-  const { cardholder } = useAuth();
+  const { user } = useAuth();
   const navigate = useNavigate();
   const [step, setStep] = useState("upload");
   const [uploadedFiles, setUploadedFiles] = useState([]);
@@ -26,18 +26,9 @@ export default function SubmissionPage() {
   const [managerFlags, setManagerFlags] = useState([]); // { type, blocking } objects
   const [reviewNotices, setReviewNotices] = useState([]); // soft strings
 
-  if (!cardholder) {
-    return (
-      <Layout>
-        <div className="max-w-md mx-auto bg-white rounded-2xl p-8 text-center">
-          <p className="text-mbzuai-navy/70">No cardholder selected.</p>
-          <div className="mt-4 flex justify-center">
-            <Button onClick={() => navigate("/rla")}>Choose cardholder</Button>
-          </div>
-        </div>
-      </Layout>
-    );
-  }
+  // No "choose a cardholder first" gate any more. Identity comes from signing
+  // in, and which card was used is asked inside the form as a detail of the
+  // purchase.
 
   const handleUploaded = async (files, mode) => {
     setUploadedFiles(files);
@@ -74,7 +65,7 @@ export default function SubmissionPage() {
           New Submission
         </p>
         <h1 className="mt-2 text-3xl font-semibold text-mbzuai-navy">
-          {cardholder.cardholder_name}
+          {user.fullName}
         </h1>
 
         {/* step indicator */}

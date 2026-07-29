@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import apiClient, { API_BASE_URL } from "../../api/client";
+import apiClient, { downloadAuthedFile } from "../../api/client";
 import ManagerLayout from "../../components/ManagerLayout";
 
 const fmt = (n) =>
@@ -173,12 +173,21 @@ export default function ManagerPackage() {
           </div>
 
           <div className="mt-5 flex gap-3">
-            <a
-              href={`${API_BASE_URL}/spreadsheets/download/${encodeURIComponent(generated.filename)}`}
+            {/* Was a plain <a href>. A browser navigating to a URL sends no
+                Authorization header, so that returned 401 once the route was
+                actually protected — fetch the bytes with the token instead. */}
+            <button
+              type="button"
+              onClick={() =>
+                downloadAuthedFile(
+                  `/spreadsheets/download/${encodeURIComponent(generated.filename)}`,
+                  generated.filename
+                ).catch((err) => setError(err.message))
+              }
               className="px-5 py-2.5 rounded-lg bg-mbzuai-gold text-mbzuai-navy text-sm font-semibold hover:bg-mbzuai-gold/80"
             >
               Download Spreadsheet
-            </a>
+            </button>
             <button
               onClick={() => { setGenerated(null); setCardholderId(""); setPeriodId(""); }}
               className="px-5 py-2.5 rounded-lg border border-mbzuai-navy/20 text-mbzuai-navy text-sm font-medium hover:bg-mbzuai-sand/50"

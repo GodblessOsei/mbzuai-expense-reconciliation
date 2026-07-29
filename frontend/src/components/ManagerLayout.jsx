@@ -7,6 +7,10 @@ const menuItems = [
   { label: "Download Package",            path: "/manager/package-download"  },
   { label: "Set Budget",                  path: "/manager/budget"            },
   { label: "Manage Budget Items",         path: "/manager/budget-items"      },
+  // RLAs and managers are administered separately: RLAs hold cards and must
+  // have one, managers never do. Two screens keep those rules from muddling.
+  { label: "RLAs",                        path: "/manager/rlas"              },
+  { label: "Managers",                    path: "/manager/managers"          },
 ];
 
 const tabItems = [
