@@ -1,11 +1,8 @@
-const path = require("path");
-const fs = require("fs");
+const { PassThrough } = require("stream");
 const { ZipArchive } = require("archiver");
 const pool = require("../db/pool");
+const storage = require("./storageService");
 const { generateReconciliationSpreadsheet } = require("./spreadsheetService");
-
-const packageDir = path.join(__dirname, "..", "..", "uploads", "packages");
-if (!fs.existsSync(packageDir)) fs.mkdirSync(packageDir, { recursive: true });
 
 const sanitize = (v) => String(v ?? "").replace(/[^a-zA-Z0-9]/g, "").trim();
 
@@ -16,7 +13,7 @@ const formatDateShort = (v) => {
 
 const generatePackage = async (cardholderId, reconciliationPeriodId) => {
   // 1. generate (or re-use) the spreadsheet — this also marks transactions packaged
-  const { filePath: spreadsheetPath, filename: spreadsheetFilename } =
+  const { key: spreadsheetKey, filename: spreadsheetFilename } =
     await generateReconciliationSpreadsheet(cardholderId, reconciliationPeriodId);
 
   // 2. collect all receipt PDFs for packaged transactions in this period
@@ -56,33 +53,54 @@ const generatePackage = async (cardholderId, reconciliationPeriodId) => {
   // 3. build ZIP
   const periodStr   = `${formatDateShort(periodStart)}_${formatDateShort(periodEnd)}`;
   const zipFilename = `MBZUAI_RLA_Package_${sanitize(holderName)}_${periodStr}.zip`;
-  const zipPath     = path.join(packageDir, zipFilename);
+  const zipKey = storage.buildKey(storage.KEY_PREFIX.PACKAGES, zipFilename);
 
-  await new Promise((resolve, reject) => {
-    const output  = fs.createWriteStream(zipPath);
-    const archive = new ZipArchive({ zlib: { level: 6 } });
+  // archive.file() reads a path off the disk, which is no longer where files
+  // necessarily live. Fetch the bytes first and append buffers instead.
+  const spreadsheetBuffer = await storage.getFile(spreadsheetKey);
 
-    output.on("close", resolve);
+  const receiptEntries = [];
+  for (const f of files) {
+    if (!f.file_path) continue;
+    const key = storage.normalizeKey(f.file_path, storage.KEY_PREFIX.RECEIPTS);
+    // a row can outlive its file; skip rather than fail the whole package
+    if (!(await storage.fileExists(key))) continue;
+    receiptEntries.push({
+      buffer: await storage.getFile(key),
+      name: `receipts/${f.original_filename || f.stored_filename}`,
+    });
+  }
+
+  // Build the ZIP in memory, then hand the finished bytes to storage.
+  const zipBuffer = await new Promise((resolve, reject) => {
+    const archive   = new ZipArchive({ zlib: { level: 6 } });
+    const collector = new PassThrough();
+    const chunks    = [];
+
+    collector.on("data", (chunk) => chunks.push(chunk));
+    collector.on("end", () => resolve(Buffer.concat(chunks)));
+    collector.on("error", reject);
     archive.on("error", reject);
-    archive.pipe(output);
+
+    archive.pipe(collector);
 
     // spreadsheet at the root of the ZIP
-    archive.file(spreadsheetPath, { name: spreadsheetFilename });
+    archive.append(spreadsheetBuffer, { name: spreadsheetFilename });
 
     // receipt files in a receipts/ subfolder
-    files.forEach((f) => {
-      if (f.file_path && fs.existsSync(f.file_path)) {
-        archive.file(f.file_path, { name: `receipts/${f.original_filename || f.stored_filename}` });
-      }
-    });
+    receiptEntries.forEach((entry) =>
+      archive.append(entry.buffer, { name: entry.name })
+    );
 
     archive.finalize();
   });
 
+  await storage.saveFile(zipKey, zipBuffer);
+
   return {
-    zipPath,
+    zipKey,
     zipFilename,
-    receiptCount: files.length,
+    receiptCount: receiptEntries.length,
   };
 };
 

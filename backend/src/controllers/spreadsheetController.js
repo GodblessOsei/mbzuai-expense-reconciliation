@@ -1,6 +1,10 @@
-const fs = require("fs");
+const path = require("path");
 const pool = require("../db/pool");
+const storage = require("../services/storageService");
 const { generateReconciliationSpreadsheet } = require("../services/spreadsheetService");
+
+const XLSX_MIME =
+  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
 
 const previewPackage = async (req, res) => {
   try {
@@ -67,7 +71,7 @@ const generateSpreadsheet = async (req, res) => {
       });
     }
 
-    const { filePath, filename, summary } = await generateReconciliationSpreadsheet(
+    const { filename, summary } = await generateReconciliationSpreadsheet(
       cardholder_id,
       reconciliation_period_id
     );
@@ -92,17 +96,24 @@ const downloadSpreadsheet = async (req, res) => {
   try {
     const { filename } = req.params;
 
-    // prevent path traversal — only allow the basename
-    const safe = require("path").basename(filename);
-    const filePath = require("path").join(
-      __dirname, "..", "..", "uploads", "spreadsheets", safe
-    );
+    // prevent path traversal — only allow the basename. The storage driver
+    // rejects escaping keys too, but keeping this makes the intent explicit.
+    const safe = path.basename(filename);
+    const key = storage.buildKey(storage.KEY_PREFIX.SPREADSHEETS, safe);
 
-    if (!fs.existsSync(filePath)) {
+    if (!(await storage.fileExists(key))) {
       return res.status(404).json({ success: false, message: "Spreadsheet not found" });
     }
 
-    return res.download(filePath, safe);
+    res.setHeader("Content-Disposition", `attachment; filename="${safe}"`);
+    res.setHeader("Content-Type", XLSX_MIME);
+
+    const stream = await storage.createReadStream(key);
+    stream.on("error", (err) => {
+      console.error("downloadSpreadsheet stream error:", err);
+      res.status(500).end();
+    });
+    return stream.pipe(res);
   } catch (error) {
     console.error("downloadSpreadsheet error:", error);
     return res.status(500).json({ success: false, message: "Failed to download spreadsheet" });

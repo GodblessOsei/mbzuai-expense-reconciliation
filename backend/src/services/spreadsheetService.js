@@ -1,6 +1,6 @@
-const path = require("path");
 const ExcelJS = require("exceljs");
 const pool = require("../db/pool");
+const storage = require("./storageService");
 
 const NAVY = "FF1B3A6B";
 const GOLD = "FFE4C988";
@@ -19,14 +19,6 @@ const TOTAL_COLS = 22; // A–V
 const LAST_COL_LETTER = "V";
 const HEADER_ROW = 9;
 const FIRST_DATA_OFFSET = 1; // data starts the row after HEADER_ROW
-
-const spreadsheetDir = path.join(
-  __dirname,
-  "..",
-  "..",
-  "uploads",
-  "spreadsheets"
-);
 
 const sanitize = (v) =>
   String(v ?? "")
@@ -481,9 +473,12 @@ const generateReconciliationSpreadsheet = async (
   // ── SAVE ──────────────────────────────────────────────────────────────────
   const periodStr = `${formatDate(period_start).replace(/\//g, "-")}_${formatDate(period_end).replace(/\//g, "-")}`;
   const filename = `MBZUAI_Reconciliation_${sanitize(cardholder_name)}_${periodStr}.xlsx`;
-  const filePath = path.join(spreadsheetDir, filename);
+  const key = storage.buildKey(storage.KEY_PREFIX.SPREADSHEETS, filename);
 
-  await workbook.xlsx.writeFile(filePath);
+  // writeBuffer instead of writeFile — the storage driver decides where bytes
+  // land, so ExcelJS hands us the bytes rather than touching the disk itself.
+  const buffer = await workbook.xlsx.writeBuffer();
+  await storage.saveFile(key, Buffer.from(buffer));
 
   await pool.query(
     `UPDATE transactions SET status = 'packaged'
@@ -492,7 +487,7 @@ const generateReconciliationSpreadsheet = async (
   );
 
   return {
-    filePath,
+    key,
     filename,
     summary: {
       totalSpend,
