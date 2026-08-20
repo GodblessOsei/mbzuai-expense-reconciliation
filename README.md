@@ -19,8 +19,8 @@
 
 ## Getting started (fresh clone)
 
-1. nvm use (Node 20)
+1. nvm use (Node 24)
 2. cd backend && npm ci && cp .env.example .env (fill in values)
 3. cd frontend && npm ci && cp .env.example .env
-4. Backend: npm run dev (port 4000)
+4. Backend: npm run dev (port 5050)
 5. Frontend: npm run dev (port 5173)

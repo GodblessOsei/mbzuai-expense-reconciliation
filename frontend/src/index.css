@@ -1,3 +1,20 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+@layer base {
+  /* Spinner arrows on number inputs are useless for money. Stepping from 12.95
+     to 12.01 is 94 clicks, and on a desktop the same control hijacks the scroll
+     wheel — hover a focused amount field, scroll the page, and the figure
+     changes underneath you. Typing is the only sane way to enter an amount, so
+     the arrows come off everywhere rather than field by field. */
+  input[type="number"]::-webkit-outer-spin-button,
+  input[type="number"]::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
+  input[type="number"] {
+    -moz-appearance: textfield;
+    appearance: textfield;
+  }
+}

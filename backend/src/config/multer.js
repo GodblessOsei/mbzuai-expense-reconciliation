@@ -10,9 +10,22 @@ const storage = multer.memoryStorage();
 
 const MAX_FILE_SIZE_BYTES = 15 * 1024 * 1024;
 
+// cb(null, false) would mean "skip this file and carry on" — multer drops it
+// with no error and no record, so a bad file in a multi-file upload vanishes
+// silently and the OCR sums the receipts that survived. A short total on a
+// prepaid card is not something to discover at reconciliation time, so an
+// unsupported file fails the WHOLE request instead. See handleUploadErrors in
+// routes/uploadRoutes.js for the response this turns into.
 const fileFilter = (req, file, cb) => {
   const allowed = ["image/jpeg", "image/png", "application/pdf"];
-  cb(null, allowed.includes(file.mimetype));
+  if (allowed.includes(file.mimetype)) return cb(null, true);
+
+  const error = new Error(
+    `"${file.originalname}" isn't a supported file type (${file.mimetype}). ` +
+      `Receipts must be JPEG, PNG, or PDF.`
+  );
+  error.code = "UNSUPPORTED_FILE_TYPE";
+  return cb(error);
 };
 
 module.exports = multer({

@@ -11,25 +11,46 @@ const fmtDate = (v) =>
 export default function ManagerPackageDownload() {
   const [cardholders, setCardholders] = useState([]);
   const [cardholderId, setCardholderId] = useState("");
-  const [currentPeriod, setCurrentPeriod] = useState(null);
+  const [periods, setPeriods] = useState([]);
+  const [periodId, setPeriodId] = useState("");
+  const [currentPeriodId, setCurrentPeriodId] = useState(null);
   const [preview, setPreview] = useState(null);
   const [previewLoading, setPreviewLoading] = useState(false);
   const [downloading, setDownloading] = useState(false);
   const [done, setDone] = useState(false);
   const [error, setError] = useState("");
 
-  // fetch cardholders + current period on mount
+  // fetch cardholders + selectable periods on mount
   useEffect(() => {
     apiClient.get("/cardholders").then((r) => setCardholders(r.data.cardholders));
+
+    // current-period is fetched FIRST because it CREATES the row when the
+    // current period has no transactions yet. Listing before that would omit
+    // it, leaving the manager unable to package the period they're actually in.
     apiClient
       .get("/packages/current-period")
-      .then((r) => setCurrentPeriod(r.data.period))
-      .catch(() => setError("Could not determine current reconciliation period."));
+      .then((r) => {
+        const current = r.data.period;
+        setCurrentPeriodId(current.reconciliationPeriodId);
+        setPeriodId(String(current.reconciliationPeriodId)); // default to today's period
+      })
+      .catch(() => setError("Could not determine current reconciliation period."))
+      .finally(() =>
+        apiClient
+          .get("/reconciliation-periods")
+          // newest first — past periods are picked far more often than old ones
+          .then((r) =>
+            setPeriods(
+              [...r.data.periods].sort((a, b) => new Date(b.end_date) - new Date(a.end_date))
+            )
+          )
+          .catch(() => setError("Could not load reconciliation periods."))
+      );
   }, []);
 
-  // auto-preview when cardholder is selected and we have the period
+  // auto-preview once both a cardholder and a period are chosen
   useEffect(() => {
-    if (!cardholderId || !currentPeriod?.reconciliationPeriodId) {
+    if (!cardholderId || !periodId) {
       setPreview(null);
       return;
     }
@@ -40,13 +61,13 @@ export default function ManagerPackageDownload() {
       .get("/spreadsheets/preview", {
         params: {
           cardholder_id: cardholderId,
-          reconciliation_period_id: currentPeriod.reconciliationPeriodId,
+          reconciliation_period_id: periodId,
         },
       })
       .then((r) => setPreview(r.data.preview))
       .catch(() => setPreview(null))
       .finally(() => setPreviewLoading(false));
-  }, [cardholderId, currentPeriod]);
+  }, [cardholderId, periodId]);
 
   const handleDownload = async () => {
     setDownloading(true);
@@ -60,7 +81,7 @@ export default function ManagerPackageDownload() {
         headers: { "Content-Type": "application/json", ...authHeaders() },
         body: JSON.stringify({
           cardholder_id: Number(cardholderId),
-          reconciliation_period_id: currentPeriod.reconciliationPeriodId,
+          reconciliation_period_id: Number(periodId),
         }),
       });
 
@@ -89,6 +110,8 @@ export default function ManagerPackageDownload() {
   };
 
   const selected = cardholders.find((c) => String(c.cardholder_id) === cardholderId);
+  const selectedPeriod = periods.find((p) => String(p.reconciliation_period_id) === periodId);
+  const isCurrentPeriod = periodId !== "" && Number(periodId) === currentPeriodId;
 
   const selectClass =
     "w-full rounded-lg border border-mbzuai-navy/20 px-3 py-2.5 text-sm text-mbzuai-navy focus:border-mbzuai-gold focus:outline-none bg-white";
@@ -98,36 +121,53 @@ export default function ManagerPackageDownload() {
       <p className="text-mbzuai-gold font-medium tracking-wide uppercase text-sm">Manager</p>
       <h1 className="mt-2 text-3xl font-semibold text-mbzuai-navy">Download Package</h1>
       <p className="mt-1 text-sm text-mbzuai-navy/50">
-        Generate and download a ZIP containing the reconciliation spreadsheet and all receipt files for the current period.
+        Generate and download a ZIP containing the reconciliation spreadsheet and all receipt files for a
+        reconciliation period. Past periods can be re-packaged at any time.
       </p>
 
-      {/* current period banner */}
-      {currentPeriod && (
-        <div className="mt-6 inline-flex items-center gap-2 rounded-lg bg-mbzuai-navy/5 border border-mbzuai-navy/10 px-4 py-2.5">
+      {/* selectors */}
+      <div className="mt-6 grid grid-cols-1 sm:grid-cols-2 gap-4 max-w-xl">
+        <div>
+          <label className="block text-xs font-medium text-mbzuai-navy/60 mb-1.5 uppercase tracking-wide">
+            Cardholder
+          </label>
+          <select value={cardholderId} onChange={(e) => { setCardholderId(e.target.value); setDone(false); }} className={selectClass}>
+            <option value="">Select cardholder…</option>
+            {cardholders.map((c) => (
+              <option key={c.cardholder_id} value={c.cardholder_id}>
+                {c.cardholder_name} (#{c.last_four_digits})
+              </option>
+            ))}
+          </select>
+        </div>
+        <div>
+          <label className="block text-xs font-medium text-mbzuai-navy/60 mb-1.5 uppercase tracking-wide">
+            Reconciliation Period
+          </label>
+          <select value={periodId} onChange={(e) => { setPeriodId(e.target.value); setDone(false); }} className={selectClass}>
+            <option value="">Select period…</option>
+            {periods.map((p) => (
+              <option key={p.reconciliation_period_id} value={p.reconciliation_period_id}>
+                {fmtDate(p.start_date)} – {fmtDate(p.end_date)}
+                {p.reconciliation_period_id === currentPeriodId ? " (current)" : ""}
+              </option>
+            ))}
+          </select>
+        </div>
+      </div>
+
+      {/* selected period banner */}
+      {selectedPeriod && (
+        <div className="mt-4 inline-flex items-center gap-2 rounded-lg bg-mbzuai-navy/5 border border-mbzuai-navy/10 px-4 py-2.5">
           <span className="w-2 h-2 rounded-full bg-mbzuai-gold flex-shrink-0" />
           <span className="text-sm text-mbzuai-navy font-medium">
-            Current period:&nbsp;
+            {isCurrentPeriod ? "Current period" : "Past period"}:&nbsp;
             <span className="font-semibold">
-              {fmtDate(currentPeriod.startDate)} – {fmtDate(currentPeriod.endDate)}
+              {fmtDate(selectedPeriod.start_date)} – {fmtDate(selectedPeriod.end_date)}
             </span>
           </span>
         </div>
       )}
-
-      {/* cardholder selector */}
-      <div className="mt-6 max-w-xs">
-        <label className="block text-xs font-medium text-mbzuai-navy/60 mb-1.5 uppercase tracking-wide">
-          Cardholder
-        </label>
-        <select value={cardholderId} onChange={(e) => { setCardholderId(e.target.value); setDone(false); }} className={selectClass}>
-          <option value="">Select cardholder…</option>
-          {cardholders.map((c) => (
-            <option key={c.cardholder_id} value={c.cardholder_id}>
-              {c.cardholder_name} (#{c.last_four_digits})
-            </option>
-          ))}
-        </select>
-      </div>
 
       {previewLoading && (
         <p className="mt-6 text-sm text-mbzuai-navy/50 animate-pulse">Loading period summary…</p>
@@ -138,11 +178,14 @@ export default function ManagerPackageDownload() {
         <div className="mt-8">
           <h2 className="text-base font-semibold text-mbzuai-navy mb-4">
             Package contents — {selected?.cardholder_name}
+            <span className="font-normal text-mbzuai-navy/50">
+              {" · "}{fmtDate(selectedPeriod?.start_date)} – {fmtDate(selectedPeriod?.end_date)}
+            </span>
           </h2>
 
           {preview.totalCount === 0 ? (
             <div className="rounded-xl border border-mbzuai-navy/10 bg-white p-8 text-center text-mbzuai-navy/40 text-sm">
-              No eligible transactions for this cardholder in the current period.
+              No eligible transactions for this cardholder in the selected period.
             </div>
           ) : (
             <>

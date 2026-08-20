@@ -1,14 +1,16 @@
-const path = require("path");
+const { fileTypeFromBuffer } = require("file-type");
 const pool = require("../db/pool");
 const storage = require("../services/storageService");
 
+const SUPPORTED_MIME_TYPES = ["image/jpeg", "image/png", "application/pdf"];
+
 // multer used to invent the stored filename; now that files come through in
 // memory, we build it here. Timestamp + random keeps two RLAs uploading
-// "IMG_0001.jpg" at the same moment from colliding.
-const buildStoredFilename = (originalName) => {
-  const ext = path.extname(originalName || "");
-  return `${Date.now()}-${Math.round(Math.random() * 1e9)}${ext}`;
-};
+// "IMG_0001.jpg" at the same moment from colliding. The extension comes from
+// the detected format, not the original name, so the stored key never claims
+// to be something the bytes aren't.
+const buildStoredFilename = (extension) =>
+  `${Date.now()}-${Math.round(Math.random() * 1e9)}.${extension}`;
 
 const uploadReceipts = async (req, res) => {
   try {
@@ -20,9 +22,33 @@ const uploadReceipts = async (req, res) => {
         .json({ success: false, message: "No files uploaded" });
     }
 
-    const saved = [];
+    // multer's fileFilter only sees the mimetype the BROWSER supplied, and the
+    // browser derives that from the file extension. A HEIC renamed .jpg walks
+    // straight through that gate, then fails much later inside OCR or the PDF
+    // builder, where the cause is nowhere near the symptom. The bytes are the
+    // only honest answer, so every file is re-checked against its magic bytes.
+    //
+    // This happens BEFORE anything is written. Rejecting partway through the
+    // save loop would leave the earlier files stored and their rows inserted,
+    // for a request that ultimately failed.
+    const checked = [];
     for (const file of req.files) {
-      const storedFilename = buildStoredFilename(file.originalname);
+      const detected = await fileTypeFromBuffer(file.buffer);
+      if (!detected || !SUPPORTED_MIME_TYPES.includes(detected.mime)) {
+        return res.status(400).json({
+          success: false,
+          message:
+            `"${file.originalname}" isn't a supported file type` +
+            `${detected ? ` (it is really ${detected.mime})` : ""}. ` +
+            `Receipts must be JPEG, PNG, or PDF.`,
+        });
+      }
+      checked.push({ file, detected });
+    }
+
+    const saved = [];
+    for (const { file, detected } of checked) {
+      const storedFilename = buildStoredFilename(detected.ext);
       const key = storage.buildKey(storage.KEY_PREFIX.RECEIPTS, storedFilename);
 
       // Write the bytes first — if this throws we must not leave a DB row
@@ -39,7 +65,9 @@ const uploadReceipts = async (req, res) => {
           file.originalname,
           storedFilename,
           key,
-          file.mimetype,
+          // the detected type, never file.mimetype — the row records what the
+          // bytes are, not what the upload claimed.
+          detected.mime,
         ]
       );
       saved.push(result.rows[0]);

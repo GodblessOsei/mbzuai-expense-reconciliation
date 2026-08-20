@@ -68,12 +68,15 @@ export default function SubmissionPage() {
           {user.fullName}
         </h1>
 
-        {/* step indicator */}
-        <div className="mt-6 flex items-center gap-2">
+        {/* Step indicator. Four numbers plus four labels plus three dashes is
+            wider than a phone, so on small screens only the CURRENT step keeps
+            its label — the others shrink to their numbered circle, which is
+            enough to show how far along you are. */}
+        <div className="mt-6 flex items-center gap-1.5 sm:gap-2">
           {STEPS.map((s, i) => (
-            <div key={s} className="flex items-center gap-2">
+            <div key={s} className="flex items-center gap-1.5 sm:gap-2">
               <div
-                className={`flex items-center justify-center w-7 h-7 rounded-full text-xs font-semibold ${
+                className={`flex shrink-0 items-center justify-center w-7 h-7 rounded-full text-xs font-semibold ${
                   i <= currentIndex
                     ? "bg-mbzuai-navy text-white"
                     : "bg-mbzuai-navy/10 text-mbzuai-navy/40"
@@ -82,7 +85,9 @@ export default function SubmissionPage() {
                 {i + 1}
               </div>
               <span
-                className={`text-sm ${
+                className={`text-sm whitespace-nowrap ${
+                  i === currentIndex ? "inline" : "hidden sm:inline"
+                } ${
                   i <= currentIndex ? "text-mbzuai-navy" : "text-mbzuai-navy/40"
                 }`}
               >
@@ -96,7 +101,7 @@ export default function SubmissionPage() {
         </div>
 
         {/* the step content, in a card */}
-        <div className="mt-6 bg-white rounded-2xl border border-mbzuai-navy/10 p-8">
+        <div className="mt-6 bg-white rounded-2xl border border-mbzuai-navy/10 p-5 sm:p-8">
           {step === "upload" && <ReceiptUpload onUploaded={handleUploaded} />}
 
           {step === "ocr" && (

@@ -2,12 +2,25 @@ import { useState, useRef } from "react";
 import apiClient from "../api/client";
 import Button from "./Button";
 
+// The camera shortcut is for phones only. A laptop webcam photographs a receipt
+// badly — soft focus, glare, low effective resolution — and a bad image doesn't
+// fail cleanly, it produces plausible-looking wrong numbers out of the OCR.
+// On a laptop the file picker is the right (and only) path.
+const IS_MOBILE = (() => {
+  if (navigator.userAgentData) return navigator.userAgentData.mobile === true;
+  const ua = navigator.userAgent;
+  // iPadOS 13+ reports itself as "Macintosh", so touch points are the tell.
+  const isIpad = /Macintosh/.test(ua) && navigator.maxTouchPoints > 1;
+  return /Android|iPhone|iPad|iPod/i.test(ua) || isIpad;
+})();
+
 export default function ReceiptUpload({ onUploaded }) {
   const [files, setFiles] = useState([]);
   const [status, setStatus] = useState("");
   const [previewFile, setPreviewFile] = useState(null);
   const [mode, setMode] = useState("separate_receipts"); // used for 2+ files
   const inputRef = useRef(null);
+  const cameraInputRef = useRef(null);
 
   const isMultiple = files.length >= 2;
 
@@ -29,6 +42,19 @@ export default function ReceiptUpload({ onUploaded }) {
         "Upload failed: " + (err.response?.data?.message || err.message)
       );
     }
+  };
+
+  // Shared by the file picker and the camera: append only what isn't already
+  // in the list. iOS names every camera capture "image.jpeg", so the size in
+  // the key is what keeps two separate shots from looking like a duplicate.
+  const addFiles = (incoming) => {
+    setFiles((prev) => {
+      const existingKeys = new Set(prev.map((f) => `${f.name}-${f.size}`));
+      const newFiles = incoming.filter(
+        (f) => !existingKeys.has(`${f.name}-${f.size}`)
+      );
+      return [...prev, ...newFiles];
+    });
   };
 
   const handleRemove = (indexToRemove) => {
@@ -59,17 +85,55 @@ export default function ReceiptUpload({ onUploaded }) {
           multiple
           accept="image/jpeg,image/png,application/pdf"
           onChange={(e) => {
-            const incoming = Array.from(e.target.files);
-            setFiles((prev) => {
-              const existingKeys = new Set(prev.map((f) => `${f.name}-${f.size}`));
-              const newFiles = incoming.filter((f) => !existingKeys.has(`${f.name}-${f.size}`));
-              return [...prev, ...newFiles];
-            });
+            addFiles(Array.from(e.target.files));
             e.target.value = "";
           }}
           className="hidden"
         />
       </label>
+
+      {/* Camera shortcut, phones only. `capture` hands off to the device's own
+          camera app — no in-page preview to build or permission to negotiate,
+          and the RLA gets the focus/flash/HDR controls they already know.
+          It lands in the same `files` list as anything picked off disk. */}
+      {IS_MOBILE && (
+        <div className="mt-3 flex justify-center">
+          <button
+            type="button"
+            aria-label="Take a picture of the receipt"
+            title="Take a picture"
+            onClick={() => cameraInputRef.current?.click()}
+            /* No border or background — but the box stays 44px so the tap
+               target survives losing the circle. */
+            className="inline-flex items-center justify-center h-11 w-11 text-mbzuai-navy/50 hover:text-mbzuai-navy transition-colors"
+          >
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              className="h-7 w-7"
+              aria-hidden="true"
+            >
+              <path d="M3 8.5A1.5 1.5 0 0 1 4.5 7h2.2a1 1 0 0 0 .84-.45l.92-1.4A1 1 0 0 1 9.3 4.7h5.4a1 1 0 0 1 .84.45l.92 1.4a1 1 0 0 0 .84.45h2.2A1.5 1.5 0 0 1 21 8.5v9a1.5 1.5 0 0 1-1.5 1.5h-15A1.5 1.5 0 0 1 3 17.5z" />
+              <circle cx="12" cy="13" r="3.4" />
+            </svg>
+          </button>
+          <input
+            ref={cameraInputRef}
+            type="file"
+            accept="image/*"
+            capture="environment"
+            className="hidden"
+            onChange={(e) => {
+              addFiles(Array.from(e.target.files));
+              e.target.value = "";
+            }}
+          />
+        </div>
+      )}
 
       {files.length > 0 && (
         <ul className="mt-3 space-y-1 text-sm text-mbzuai-navy/70">

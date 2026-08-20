@@ -122,21 +122,26 @@ export default function ManagerAdditionalSpending() {
         </button>
       </div>
 
+      {/* Eight columns can't fit a phone. Without a scroll container the browser
+          wraps every cell instead and the later columns become unreachable, so
+          the wrapper scrolls and `min-w` holds the columns readable. The
+          rounded corners still clip on the OUTER div. */}
       <div className="mt-6 bg-white rounded-2xl border border-mbzuai-navy/10 overflow-hidden">
-        <table className="w-full text-left">
+        <div className="overflow-x-auto">
+        <table className="w-full min-w-[1050px] text-left">
           <thead>
             <tr className="text-xs uppercase tracking-wide text-mbzuai-navy/50 bg-mbzuai-sand/50">
-              <th className="px-5 py-3 font-medium">Date</th>
-              <th className="px-5 py-3 font-medium">Vendor</th>
-              <th className="px-5 py-3 font-medium">Purchase For</th>
-              <th className="px-5 py-3 font-medium">Department</th>
-              <th className="px-5 py-3 font-medium">Category</th>
-              <th className="px-5 py-3 font-medium">Amount</th>
-              <th className="px-5 py-3 font-medium">Payment Method</th>
+              <th className="px-5 py-3 font-medium whitespace-nowrap">Date</th>
+              <th className="px-5 py-3 font-medium whitespace-nowrap">Vendor</th>
+              <th className="px-5 py-3 font-medium whitespace-nowrap">Purchase For</th>
+              <th className="px-5 py-3 font-medium whitespace-nowrap">Department</th>
+              <th className="px-5 py-3 font-medium whitespace-nowrap">Category</th>
+              <th className="px-5 py-3 font-medium whitespace-nowrap">Amount</th>
+              <th className="px-5 py-3 font-medium whitespace-nowrap">Payment Method</th>
               {/* The whole reason managers have individual logins rather than
                   one shared password: a disputed figure needs a name that was
                   proven at sign-in, not typed into a box. */}
-              <th className="px-5 py-3 font-medium">Added by</th>
+              <th className="px-5 py-3 font-medium whitespace-nowrap">Added by</th>
             </tr>
           </thead>
           <tbody>
@@ -155,16 +160,16 @@ export default function ManagerAdditionalSpending() {
             ) : (
               entries.map((e) => (
                 <tr key={e.additionalSpendingId} className="border-t border-mbzuai-navy/5 hover:bg-mbzuai-sand/30 transition-colors">
-                  <td className="px-5 py-4 text-mbzuai-navy/70">
+                  <td className="px-5 py-4 text-mbzuai-navy/70 whitespace-nowrap">
                     {new Date(e.date).toLocaleDateString()}
                   </td>
                   <td className="px-5 py-4 font-medium text-mbzuai-navy">{e.vendorName}</td>
                   <td className="px-5 py-4 text-mbzuai-navy/70">{e.budgetItemName || "—"}</td>
-                  <td className="px-5 py-4 text-mbzuai-navy/70">{e.department}</td>
-                  <td className="px-5 py-4 text-mbzuai-navy/70">{e.category}</td>
-                  <td className="px-5 py-4 text-mbzuai-navy/70">AED {e.amountAed}</td>
-                  <td className="px-5 py-4 text-mbzuai-navy/70">{e.paymentMethod}</td>
-                  <td className="px-5 py-4 text-mbzuai-navy/70">
+                  <td className="px-5 py-4 text-mbzuai-navy/70 whitespace-nowrap">{e.department}</td>
+                  <td className="px-5 py-4 text-mbzuai-navy/70 whitespace-nowrap">{e.category}</td>
+                  <td className="px-5 py-4 text-mbzuai-navy/70 whitespace-nowrap">AED {e.amountAed}</td>
+                  <td className="px-5 py-4 text-mbzuai-navy/70 whitespace-nowrap">{e.paymentMethod}</td>
+                  <td className="px-5 py-4 text-mbzuai-navy/70 whitespace-nowrap">
                     {/* Null for rows entered before logins existed — there is
                         genuinely no record, and inventing one would be worse. */}
                     {e.createdByName || (
@@ -176,6 +181,7 @@ export default function ManagerAdditionalSpending() {
             )}
           </tbody>
         </table>
+        </div>
       </div>
 
       {showForm && (
@@ -214,13 +220,25 @@ export default function ManagerAdditionalSpending() {
                 </div>
                 <div>
                   <label className={labelClass}>Amount (AED)</label>
+                  {/* Not type="number". The CSS hides its arrows, but Chrome
+                      still lets the SCROLL WHEEL change a focused number field,
+                      which is a quiet way to alter an amount by accident.
+                      inputMode="decimal" keeps the phone keypad, and the guard
+                      below allows only a money-shaped string, so `Number()` at
+                      submit can never see NaN. */}
                   <input
-                    type="number"
-                    min="0"
-                    step="0.01"
+                    type="text"
+                    inputMode="decimal"
                     name="amount_aed"
                     value={form.amount_aed}
-                    onChange={handleChange}
+                    onChange={(e) => {
+                      const next = e.target.value;
+                      // digits, one optional point, at most 2 places — the
+                      // shape of NUMERIC(12,2)
+                      if (next === "" || /^\d*\.?\d{0,2}$/.test(next)) {
+                        handleChange(e);
+                      }
+                    }}
                     className={inputClass}
                   />
                 </div>

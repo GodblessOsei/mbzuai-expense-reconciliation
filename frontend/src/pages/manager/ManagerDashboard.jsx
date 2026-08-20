@@ -5,6 +5,7 @@ import {
 } from "recharts";
 import ManagerLayout from "../../components/ManagerLayout";
 import apiClient from "../../api/client";
+import useMediaQuery from "../../hooks/useMediaQuery";
 
 const COLORS = ["#1B3A6B", "#C9A84C", "#4A7FC1", "#E8B84B", "#2D5A9E", "#F0CC6E"];
 const MONTH_NAMES = [
@@ -267,6 +268,23 @@ function SpendingBreakdown({ year, month }) {
   });
   const [loading, setLoading] = useState(true);
 
+  // Matches Tailwind's `sm` breakpoint, so these charts change shape at the
+  // same width as the grid around them.
+  const isNarrow = useMediaQuery("(max-width: 639px)");
+
+  // The horizontal bar charts reserved a 260px label gutter. On a phone the
+  // card is only ~320px wide inside its padding, so the bars were left with
+  // about 60px and every one of them read as the same stub. Narrow screens get
+  // a short gutter and clipped labels instead; the tooltip still carries the
+  // full name, so nothing is actually lost.
+  const categoryAxisWidth = isNarrow ? 96 : 260;
+  const clipLabel = (label) =>
+    isNarrow && label.length > 13 ? `${label.slice(0, 12)}…` : label;
+  // "AED 1,200" on every tick crowds a narrow axis — the header already says
+  // the unit, so drop it and let the numbers breathe.
+  const formatValueTick = (value) =>
+    isNarrow ? Number(value).toLocaleString() : `AED ${value}`;
+
   useEffect(() => {
     let cancelled = false;
     const params = `year=${year}${month ? `&month=${month}` : ""}`;
@@ -306,22 +324,29 @@ function SpendingBreakdown({ year, month }) {
       {/* Spending by Category — Pie */}
       <ChartCard title="Spending by Category">
         {data.byCategory.length === 0 ? <EmptyState /> : (
-          <ResponsiveContainer width="100%" height={280}>
+          /* height={36} on the legend was the overflow: six category names need
+             three lines on a phone, and pinning the box to one line's worth of
+             height let the rest spill past the card. Give the legend room and
+             let it size itself, and shrink the pie so the two together fit. */
+          <ResponsiveContainer width="100%" height={isNarrow ? 340 : 280}>
             <PieChart>
               <Pie
                 data={data.byCategory}
                 dataKey="totalAed"
                 nameKey="name"
                 cx="50%"
-                cy="45%"
-                outerRadius={95}
+                cy="42%"
+                outerRadius={isNarrow ? 78 : 95}
               >
                 {data.byCategory.map((_, i) => (
                   <Cell key={i} fill={COLORS[i % COLORS.length]} />
                 ))}
               </Pie>
               <Tooltip formatter={(v) => formatAed(v)} />
-              <Legend verticalAlign="bottom" height={36} />
+              <Legend
+                verticalAlign="bottom"
+                wrapperStyle={{ fontSize: 12, lineHeight: "1.7", paddingTop: 4 }}
+              />
             </PieChart>
           </ResponsiveContainer>
         )}
@@ -346,11 +371,11 @@ function SpendingBreakdown({ year, month }) {
       <div className="lg:col-span-2">
         <ChartCard title="Spending by Purchase For">
           {data.byBudgetItem.every((d) => d.totalAed === 0) ? <EmptyState /> : (
-            <ResponsiveContainer width="100%" height={Math.max(300, data.byBudgetItem.length * 36)}>
-              <BarChart data={data.byBudgetItem} layout="vertical" margin={{ top: 4, right: 20, bottom: 4, left: 0 }}>
+            <ResponsiveContainer width="100%" height={Math.max(300, data.byBudgetItem.length * (isNarrow ? 30 : 36))}>
+              <BarChart data={data.byBudgetItem} layout="vertical" margin={{ top: 4, right: isNarrow ? 8 : 20, bottom: 4, left: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
-                <XAxis type="number" tickFormatter={(v) => `AED ${v}`} tick={{ fontSize: 11 }} />
-                <YAxis type="category" dataKey="name" tick={{ fontSize: 11 }} width={260} />
+                <XAxis type="number" tickFormatter={formatValueTick} tick={{ fontSize: isNarrow ? 10 : 11 }} />
+                <YAxis type="category" dataKey="name" tick={{ fontSize: isNarrow ? 10 : 11 }} width={categoryAxisWidth} tickFormatter={clipLabel} />
                 <Tooltip formatter={(v) => formatAed(v)} />
                 <Bar dataKey="totalAed" name="Total Spent" fill="#C9A84C" radius={[0, 4, 4, 0]} />
               </BarChart>
@@ -379,10 +404,10 @@ function SpendingBreakdown({ year, month }) {
         <ChartCard title="Top 5 Vendors">
           {data.byVendor.length === 0 ? <EmptyState /> : (
             <ResponsiveContainer width="100%" height={260}>
-              <BarChart data={data.byVendor} layout="vertical" margin={{ top: 4, right: 20, bottom: 4, left: 0 }}>
+              <BarChart data={data.byVendor} layout="vertical" margin={{ top: 4, right: isNarrow ? 8 : 20, bottom: 4, left: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
-                <XAxis type="number" tickFormatter={(v) => `AED ${v}`} tick={{ fontSize: 11 }} />
-                <YAxis type="category" dataKey="name" tick={{ fontSize: 11 }} width={260} />
+                <XAxis type="number" tickFormatter={formatValueTick} tick={{ fontSize: isNarrow ? 10 : 11 }} />
+                <YAxis type="category" dataKey="name" tick={{ fontSize: isNarrow ? 10 : 11 }} width={categoryAxisWidth} tickFormatter={clipLabel} />
                 <Tooltip formatter={(v) => formatAed(v)} />
                 <Bar dataKey="totalAed" name="Total Spent" fill="#2D5A9E" radius={[0, 4, 4, 0]} />
               </BarChart>

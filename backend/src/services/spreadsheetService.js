@@ -123,7 +123,11 @@ const generateReconciliationSpreadsheet = async (
      LEFT JOIN reconciliation_periods rp ON rp.reconciliation_period_id = t.reconciliation_period_id
      WHERE t.cardholder_id            = $1
        AND t.reconciliation_period_id = $2
-       AND t.status IN ('submitted', 'reviewed')
+       -- 'packaged' is included so a PAST period can be re-generated. Packaging
+       -- promotes rows to 'packaged', so excluding it here meant the second run
+       -- for any period found nothing and threw, even though the preview (which
+       -- does count packaged rows) showed transactions.
+       AND t.status IN ('submitted', 'reviewed', 'packaged')
      ORDER BY t.purchase_date ASC`,
     [cardholderId, reconciliationPeriodId]
   );

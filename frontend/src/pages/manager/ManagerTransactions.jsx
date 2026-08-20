@@ -271,18 +271,24 @@ export default function ManagerTransactions() {
         </select>
       </div>
 
-      {/* table */}
+      {/* Table. Seven columns never fit a phone; without a scroll container the
+          browser's only move is to wrap every cell, which turned one vendor
+          name into four stacked lines and pushed the later columns off-screen
+          with no way to reach them. `min-w` keeps the columns at a readable
+          width and lets the wrapper scroll instead. overflow-hidden stays on
+          the OUTER div so the rounded corners still clip. */}
       <div className="mt-6 bg-white rounded-2xl border border-mbzuai-navy/10 overflow-hidden">
-        <table className="w-full text-left">
+        <div className="overflow-x-auto">
+        <table className="w-full min-w-[900px] text-left">
           <thead>
             <tr className="text-xs uppercase tracking-wide text-mbzuai-navy/50 bg-mbzuai-sand/50">
-              <th className="px-5 py-3 font-medium">Ref</th>
-              <th className="px-5 py-3 font-medium">Cardholder</th>
-              <th className="px-5 py-3 font-medium">Vendor</th>
-              <th className="px-5 py-3 font-medium">Purchase For</th>
-              <th className="px-5 py-3 font-medium">Amount</th>
-              <th className="px-5 py-3 font-medium">Status</th>
-              <th className="px-5 py-3 font-medium">Receipt PDF</th>
+              <th className="px-5 py-3 font-medium whitespace-nowrap">Ref</th>
+              <th className="px-5 py-3 font-medium whitespace-nowrap">Cardholder</th>
+              <th className="px-5 py-3 font-medium whitespace-nowrap">Vendor</th>
+              <th className="px-5 py-3 font-medium whitespace-nowrap">Purchase For</th>
+              <th className="px-5 py-3 font-medium whitespace-nowrap">Amount</th>
+              <th className="px-5 py-3 font-medium whitespace-nowrap">Status</th>
+              <th className="px-5 py-3 font-medium whitespace-nowrap">Receipt PDF</th>
             </tr>
           </thead>
           <tbody>
@@ -306,10 +312,10 @@ export default function ManagerTransactions() {
                   }}
                   className="border-t border-mbzuai-navy/5 hover:bg-mbzuai-sand/30 transition-colors"
                 >
-                  <td className="px-5 py-4 text-mbzuai-navy/70">
+                  <td className="px-5 py-4 text-mbzuai-navy/70 whitespace-nowrap">
                     #{t.transaction_id}
                   </td>
-                  <td className="px-5 py-4 font-medium text-mbzuai-navy">
+                  <td className="px-5 py-4 font-medium text-mbzuai-navy whitespace-nowrap">
                     {t.cardholder_name}
                   </td>
                   <td className="px-5 py-4 text-mbzuai-navy/70">
@@ -318,7 +324,7 @@ export default function ManagerTransactions() {
                   <td className="px-5 py-4 text-mbzuai-navy/70">
                     {t.budget_item_name || "—"}
                   </td>
-                  <td className="px-5 py-4 text-mbzuai-navy/70">
+                  <td className="px-5 py-4 text-mbzuai-navy/70 whitespace-nowrap">
                     AED {t.amount_aed}
                   </td>
                   <td className="px-5 py-4">
@@ -330,7 +336,7 @@ export default function ManagerTransactions() {
                       {t.status}
                     </span>
                   </td>
-                  <td className="px-5 py-4">
+                  <td className="px-5 py-4 whitespace-nowrap">
                     {t.pdf_path ? (
                       <div className="flex gap-3 text-sm">
                         {/* These were plain <a href> links. A browser
@@ -380,6 +386,7 @@ export default function ManagerTransactions() {
             )}
           </tbody>
         </table>
+        </div>
       </div>
       {/* transaction detail modal */}
       {selectedTransaction && (
