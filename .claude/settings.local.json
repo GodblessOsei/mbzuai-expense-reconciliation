@@ -1,8 +1,0 @@
-{
-  "permissions": {
-    "allow": [
-      "Bash(xargs sed -n '1,60p')",
-      "Bash(node -e ' *)"
-    ]
-  }
-}
