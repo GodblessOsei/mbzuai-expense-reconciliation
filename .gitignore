@@ -6,8 +6,12 @@ build/
 uploads/
 *.log
 .DS_Store
+.claude
+
 
 Chunks.md 
 CLAUDE.md 
 Handoff.md 
+DEPLOYMENT_OPTIONS.md
+AUTH.md
 NxtGen Launch Technical Project Brief_ MBZUAI RLA Prepaid Card Reconciliation System.md

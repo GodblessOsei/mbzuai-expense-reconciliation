@@ -8,11 +8,11 @@
 // Which driver runs is decided by STORAGE_DRIVER in the environment.
 const DRIVER_NAME = process.env.STORAGE_DRIVER || "local";
 
-// Drivers are loaded lazily so that selecting "local" never requires the Azure
+// Drivers are loaded lazily so that selecting "local" never requires the S3
 // SDK to be installed, and vice versa.
 const drivers = {
   local: () => require("./storage/localDriver"),
-  azure: () => require("./storage/azureDriver"),
+  s3: () => require("./storage/s3Driver"),
 };
 
 const loadDriver = drivers[DRIVER_NAME];

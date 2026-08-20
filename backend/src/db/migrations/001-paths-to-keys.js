@@ -8,7 +8,7 @@
 //
 // Because it writes through storageService, the SAME script does two jobs:
 //   STORAGE_DRIVER=local  -> reorganises backend/uploads into subfolders
-//   STORAGE_DRIVER=azure  -> uploads the existing local files to Blob Storage
+//   STORAGE_DRIVER=s3     -> uploads the existing local files to object storage
 //
 // Safety properties:
 //   - dry run by default; pass --apply to make changes

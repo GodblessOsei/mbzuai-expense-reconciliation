@@ -21,13 +21,54 @@ const additionalSpendingRoutes = require("./routes/additionalSpendingRoutes");
 const budgetRoutes = require("./routes/budgetRoutes");
 const dashboardRoutes = require("./routes/dashboardRoutes");
 
-app.use(cors({ origin: "http://localhost:5173", exposedHeaders: ["Content-Disposition"] }));
+// Comma-separated exact origins, e.g. "https://mbzuai-recon.vercel.app".
+// Defaults to the Vite dev server so local work needs no env var.
+const ALLOWED_ORIGINS = (process.env.CORS_ORIGINS || "http://localhost:5173")
+  .split(",")
+  .map((o) => o.trim())
+  .filter(Boolean);
+
+// Vercel gives every branch deploy its own hostname, so previews can't be
+// listed by hand. Opt in with CORS_ALLOW_VERCEL_PREVIEWS=true.
+const VERCEL_PREVIEW = /^https:\/\/[a-z0-9-]+\.vercel\.app$/;
+const allowPreviews = process.env.CORS_ALLOW_VERCEL_PREVIEWS === "true";
+
+const isAllowedOrigin = (origin) => {
+  // No Origin header at all: curl, health checks, server-to-server. These are
+  // not browser requests, so CORS has no say over them.
+  if (!origin) return true;
+  if (ALLOWED_ORIGINS.includes(origin)) return true;
+  return allowPreviews && VERCEL_PREVIEW.test(origin);
+};
+
+app.use(
+  cors({
+    origin: (origin, callback) => {
+      if (isAllowedOrigin(origin)) return callback(null, true);
+      // Refuse by withholding the header, not by throwing: an Error here
+      // becomes a 500 HTML page, which misreports a policy decision as a
+      // server fault. Without the header the browser blocks it anyway.
+      console.warn("CORS: blocked origin", origin);
+      return callback(null, false);
+    },
+    // The download helpers read the filename from this header. Without
+    // exposing it the browser hides it and every download is named "blob".
+    exposedHeaders: ["Content-Disposition"],
+  })
+);
 app.use(express.json());
 
 // ---- Public --------------------------------------------------------------
 // Signing in is the one door into the system, so it cannot sit behind the
 // guard. Everything public must be mounted ABOVE the line below.
 app.use("/api/auth", authRoutes);
+
+// Liveness probe for the host's health check. Deliberately does NOT touch the
+// database: this answers "is the process up", and a failing DB should surface
+// as a request error, not as the platform killing and restarting the server.
+app.get("/api/health", (req, res) => {
+  return res.json({ status: "ok", uptime: process.uptime() });
+});
 
 // ---- The guard -----------------------------------------------------------
 // Everything past this line requires a valid session. Mounting it once at the
