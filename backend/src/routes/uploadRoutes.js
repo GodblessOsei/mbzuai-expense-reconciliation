@@ -16,6 +16,12 @@ const handleUploadErrors = (error, req, res, next) => {
   if (error.code === "UNSUPPORTED_FILE_TYPE") {
     return res.status(400).json({ success: false, message: error.message });
   }
+  if (error.code === "LIMIT_FILE_COUNT") {
+    return res.status(400).json({
+      success: false,
+      message: "That's too many files for one submission (10 maximum).",
+    });
+  }
   if (error.code === "LIMIT_FILE_SIZE") {
     return res.status(400).json({
       success: false,

@@ -10,6 +10,11 @@ const storage = multer.memoryStorage();
 
 const MAX_FILE_SIZE_BYTES = 15 * 1024 * 1024;
 
+// fileSize alone bounds ONE file, not the request: without this, a single
+// upload could pin 15MB x however many files were attached. 10 covers a
+// multi-page order or a multi-seller purchase with room to spare.
+const MAX_FILE_COUNT = 10;
+
 // cb(null, false) would mean "skip this file and carry on" — multer drops it
 // with no error and no record, so a bad file in a multi-file upload vanishes
 // silently and the OCR sums the receipts that survived. A short total on a
@@ -31,5 +36,5 @@ const fileFilter = (req, file, cb) => {
 module.exports = multer({
   storage,
   fileFilter,
-  limits: { fileSize: MAX_FILE_SIZE_BYTES },
+  limits: { fileSize: MAX_FILE_SIZE_BYTES, files: MAX_FILE_COUNT },
 });

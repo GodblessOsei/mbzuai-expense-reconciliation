@@ -14,7 +14,11 @@ const buildStoredFilename = (extension) =>
 
 const uploadReceipts = async (req, res) => {
   try {
-    const { transaction_id } = req.body; // may be undefined — that's allowed (file-first)
+    // `|| {}` because Express 5 leaves req.body UNDEFINED when no body parser
+    // matched — a bodyless POST here would otherwise throw on the destructure
+    // and surface as a 500, hiding the real answer ("No files uploaded").
+    // Express 4 defaulted it to {}, which is why this read as safe.
+    const { transaction_id } = req.body || {}; // may be undefined — allowed (file-first)
 
     if (!req.files || req.files.length === 0) {
       return res
