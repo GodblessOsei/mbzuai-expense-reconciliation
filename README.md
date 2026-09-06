@@ -25,21 +25,25 @@ two-week reconciliation period and export it as PDFs and spreadsheets.
 ## Tech Stack
 
 ### Frontend
+
 - React 19 (plain JavaScript, not TypeScript)
 - Vite
 - Tailwind CSS v3
 - Recharts
 
 ### Backend
+
 - Node.js 24
 - Express 5
 - `pg` (raw SQL — no ORM)
 
 ### Database & Storage
+
 - PostgreSQL 16 (Supabase in production)
 - Supabase Storage, via any S3-compatible driver
 
 ### Other
+
 - OpenRouter (`openai/gpt-4o-mini`) for receipt reading
 - pdf-lib, ExcelJS, pdf-to-img for document generation
 - Render for hosting
@@ -89,7 +93,7 @@ mbzuai-expense-reconciliation/
 ### 1. Clone the repository
 
 ```bash
-git clone https://github.com/<org>/mbzuai-expense-reconciliation.git
+git clone https://github.com/nxtgen-students/mbzuai-expense-reconciliation.git
 cd mbzuai-expense-reconciliation
 nvm use
 ```
@@ -124,28 +128,28 @@ psql -d postgres -f src/db/seed.sql      # test data — LOCAL ONLY
 
 Seeded accounts all use the password `Password123!`:
 
-| Username | Role | Card |
-|---|---|---|
-| `neil.hammond@example.dev` | manager | — |
-| `jose@example.dev` | RLA | 8593 |
-| `xiwei@example.dev` | RLA | 6954 |
-| `hawau@example.dev` | RLA | 4924 |
-| `seung@example.dev` | RLA | 9570 |
+| Username                   | Role    | Card |
+| -------------------------- | ------- | ---- |
+| `neil.hammond@example.dev` | manager | —    |
+| `jose@example.dev`         | RLA     | 8593 |
+| `xiwei@example.dev`        | RLA     | 6954 |
+| `hawau@example.dev`        | RLA     | 4924 |
+| `seung@example.dev`        | RLA     | 9570 |
 
 ## Environment Variables
 
-| Variable | Description |
-|---|---|
-| `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER`, `DB_PASSWORD` | Local Postgres connection |
-| `DATABASE_URL` | Full connection string; used instead of the above when set (production) |
-| `PORT` | Backend port, default 5050. Never set this on Render |
-| `JWT_SECRET` | **Required.** Signs session tokens; the server refuses to start a session without it |
-| `JWT_EXPIRES_IN` | Session length, default `12h` |
-| `OPENROUTER_API_KEY` | Receipt scanning |
-| `STORAGE_DRIVER` | `local` for development, `s3` for production |
-| `S3_BUCKET`, `S3_ENDPOINT`, `S3_REGION`, `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY` | Supabase Storage; only when `STORAGE_DRIVER=s3` |
-| `CORS_ORIGINS` | Allowed browser origins. Not needed in the standard deployment |
-| `VITE_API_BASE_URL` | Frontend only. Keep it as `/api` |
+| Variable                                                                            | Description                                                                          |
+| ----------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------ |
+| `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER`, `DB_PASSWORD`                           | Local Postgres connection                                                            |
+| `DATABASE_URL`                                                                      | Full connection string; used instead of the above when set (production)              |
+| `PORT`                                                                              | Backend port, default 5050. Never set this on Render                                 |
+| `JWT_SECRET`                                                                        | **Required.** Signs session tokens; the server refuses to start a session without it |
+| `JWT_EXPIRES_IN`                                                                    | Session length, default `12h`                                                        |
+| `OPENROUTER_API_KEY`                                                                | Receipt scanning                                                                     |
+| `STORAGE_DRIVER`                                                                    | `local` for development, `s3` for production                                         |
+| `S3_BUCKET`, `S3_ENDPOINT`, `S3_REGION`, `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY` | Supabase Storage; only when `STORAGE_DRIVER=s3`                                      |
+| `CORS_ORIGINS`                                                                      | Allowed browser origins. Not needed in the standard deployment                       |
+| `VITE_API_BASE_URL`                                                                 | Frontend only. Keep it as `/api`                                                     |
 
 ## Running Locally
 
@@ -168,31 +172,31 @@ so there is no CORS to configure.
 
 All routes are under `/api` and require a `Bearer` token except where noted.
 
-| Method | Endpoint | Description |
-|---|---|---|
-| POST | `/api/auth/login` | Sign in — **public** |
-| GET | `/api/auth/me` | Current user, for restoring a session on refresh |
-| POST | `/api/auth/change-password` | Change your own password |
-| GET | `/api/health` | Liveness probe — **public** |
-| POST | `/api/uploads` | Upload receipt files |
-| POST | `/api/ocr/extract` | Read data off uploaded receipts |
-| POST | `/api/transactions/final-submit` | Submit a transaction |
-| GET | `/api/transactions/mine` | Your own submissions |
-| GET | `/api/transactions` | All transactions — *manager* |
-| PATCH | `/api/transactions/:id` | Edit a transaction — *manager* |
-| POST | `/api/transactions/:id/generate-pdf` | Generate the standardised PDF — *manager* |
-| GET | `/api/transactions/:id/pdf` | Download it — *manager* |
-| GET | `/api/transactions/:id/audit-logs` | Who changed what — *manager* |
-| PATCH | `/api/flags/:flagId/resolve` | Resolve a flag |
-| GET | `/api/cardholders` | All cards |
-| PATCH | `/api/cardholders/:id/assign` | Assign a card to someone — *manager* |
-| GET/POST | `/api/users` | List and create people — *manager* |
-| POST | `/api/users/:userId/reset-password` | Issue a temporary password — *manager* |
-| GET | `/api/reconciliation-periods` | All two-week periods |
-| GET/POST | `/api/budgets/:year` | Annual budget — *manager* |
-| GET | `/api/dashboard/spending-by-*` | Charts by category, cardholder, department, vendor, budget item — *manager* |
-| GET/POST | `/api/spreadsheets` | Preview, generate and download — *manager* |
-| POST | `/api/packages/download` | Zipped archive for a period — *manager* |
+| Method   | Endpoint                             | Description                                                                 |
+| -------- | ------------------------------------ | --------------------------------------------------------------------------- |
+| POST     | `/api/auth/login`                    | Sign in — **public**                                                        |
+| GET      | `/api/auth/me`                       | Current user, for restoring a session on refresh                            |
+| POST     | `/api/auth/change-password`          | Change your own password                                                    |
+| GET      | `/api/health`                        | Liveness probe — **public**                                                 |
+| POST     | `/api/uploads`                       | Upload receipt files                                                        |
+| POST     | `/api/ocr/extract`                   | Read data off uploaded receipts                                             |
+| POST     | `/api/transactions/final-submit`     | Submit a transaction                                                        |
+| GET      | `/api/transactions/mine`             | Your own submissions                                                        |
+| GET      | `/api/transactions`                  | All transactions — _manager_                                                |
+| PATCH    | `/api/transactions/:id`              | Edit a transaction — _manager_                                              |
+| POST     | `/api/transactions/:id/generate-pdf` | Generate the standardised PDF — _manager_                                   |
+| GET      | `/api/transactions/:id/pdf`          | Download it — _manager_                                                     |
+| GET      | `/api/transactions/:id/audit-logs`   | Who changed what — _manager_                                                |
+| PATCH    | `/api/flags/:flagId/resolve`         | Resolve a flag                                                              |
+| GET      | `/api/cardholders`                   | All cards                                                                   |
+| PATCH    | `/api/cardholders/:id/assign`        | Assign a card to someone — _manager_                                        |
+| GET/POST | `/api/users`                         | List and create people — _manager_                                          |
+| POST     | `/api/users/:userId/reset-password`  | Issue a temporary password — _manager_                                      |
+| GET      | `/api/reconciliation-periods`        | All two-week periods                                                        |
+| GET/POST | `/api/budgets/:year`                 | Annual budget — _manager_                                                   |
+| GET      | `/api/dashboard/spending-by-*`       | Charts by category, cardholder, department, vendor, budget item — _manager_ |
+| GET/POST | `/api/spreadsheets`                  | Preview, generate and download — _manager_                                  |
+| POST     | `/api/packages/download`             | Zipped archive for a period — _manager_                                     |
 
 Requests and responses are camelCase; the database is snake_case. Middleware
 translates between them.
@@ -266,13 +270,13 @@ Do **not** run `seed.sql` — that is test data with a publicly known password.
 6. Render prompts for the secrets it cannot generate. Fill in the values you
    collected above:
 
-   | Variable | From |
-   |---|---|
-   | `DATABASE_URL` | step 2 |
-   | `OPENROUTER_API_KEY` | step 5 |
-   | `S3_BUCKET` | `receipts` |
-   | `S3_ENDPOINT`, `S3_REGION` | step 4 |
-   | `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY` | step 4 |
+   | Variable                                   | From       |
+   | ------------------------------------------ | ---------- |
+   | `DATABASE_URL`                             | step 2     |
+   | `OPENROUTER_API_KEY`                       | step 5     |
+   | `S3_BUCKET`                                | `receipts` |
+   | `S3_ENDPOINT`, `S3_REGION`                 | step 4     |
+   | `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY` | step 4     |
 
    You are **not** asked for `JWT_SECRET`. Render generates it.
 
@@ -282,8 +286,8 @@ Do **not** run `seed.sql` — that is test data with a publicly known password.
 
 On the API service: **Environment → Add Environment Variable**.
 
-| Key | Value |
-|---|---|
+| Key            | Value                      |
+| -------------- | -------------------------- |
 | `NODE_OPTIONS` | `--max-old-space-size=400` |
 
 Use roughly 75% of the instance's RAM. Without it Node can size its heap from
