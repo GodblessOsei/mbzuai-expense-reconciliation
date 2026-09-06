@@ -13,7 +13,11 @@ const VALID_ROLES = ["rla", "manager"];
 
 // Naive on purpose: this catches typos, it is not trying to prove an address
 // is deliverable. There is no mail being sent.
-const looksLikeEmail = (email) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+// Nothing in this system sends mail, so a username is just a login handle.
+// The rule only has to rule out what breaks a login: whitespace, empties and
+// silly lengths. The dot, dash, underscore and @ are allowed so the original
+// address-style usernames stay valid.
+const looksLikeUsername = (username) => /^[A-Za-z0-9._@-]{3,64}$/.test(username);
 
 // GET /api/users?role=rla&active=true
 const getUsers = async (req, res) => {
@@ -39,7 +43,7 @@ const getUsers = async (req, res) => {
     // The card each person currently holds comes along for the ride so the
     // admin screen can show "Jose — card 8593" in one request.
     const result = await pool.query(
-      `SELECT u.user_id, u.full_name, u.email, u.role, u.is_active,
+      `SELECT u.user_id, u.full_name, u.username, u.role, u.is_active,
               u.must_change_password, u.created_at, u.deactivated_at,
               c.cardholder_id, c.cardholder_name, c.last_four_digits
          FROM users u
@@ -55,7 +59,7 @@ const getUsers = async (req, res) => {
       users: result.rows.map((row) => ({
         userId: row.user_id,
         fullName: row.full_name,
-        email: row.email,
+        username: row.username,
         role: row.role,
         isActive: row.is_active,
         mustChangePassword: row.must_change_password,
@@ -88,12 +92,12 @@ const createUser = async (req, res) => {
     // A new RLA arrives with either a card already in the system, or a brand
     // new one the manager types the last four digits of. Cards are not a fixed
     // pool -- there is no cap, so adding an RLA is never blocked on supply.
-    const { fullName, email, role, cardholderId, newCardLastFour } = req.body;
+    const { fullName, username, role, cardholderId, newCardLastFour } = req.body;
 
-    if (!fullName || !email || !role) {
+    if (!fullName || !username || !role) {
       return res.status(400).json({
         success: false,
-        message: "Full name, email and role are required",
+        message: "Full name, username and role are required",
       });
     }
 
@@ -127,22 +131,26 @@ const createUser = async (req, res) => {
       });
     }
 
-    const normalizedEmail = authService.normalizeEmail(email);
-    if (!looksLikeEmail(normalizedEmail)) {
+    const normalizedUsername = authService.normalizeUsername(username);
+    if (!looksLikeUsername(normalizedUsername)) {
       return res
         .status(400)
-        .json({ success: false, message: "That does not look like an email address" });
+        .json({
+        success: false,
+        message:
+          "A username must be 3-64 characters, with no spaces",
+      });
     }
 
-    const existing = await authService.findUserByEmail(normalizedEmail);
+    const existing = await authService.findUserByUsername(normalizedUsername);
     if (existing) {
       // Deliberately explicit here, unlike login: a manager adding someone
       // needs to know the account already exists, and they are already trusted.
       return res.status(409).json({
         success: false,
         message: existing.is_active
-          ? "Someone with that email already exists"
-          : "A deactivated account with that email exists — reactivate it instead",
+          ? "Someone with that username already exists"
+          : "A deactivated account with that username exists — reactivate it instead",
       });
     }
 
@@ -196,12 +204,12 @@ const createUser = async (req, res) => {
     const temporaryPassword = authService.generateTemporaryPassword();
 
     const result = await pool.query(
-      `INSERT INTO users (full_name, email, password_hash, role, must_change_password)
+      `INSERT INTO users (full_name, username, password_hash, role, must_change_password)
        VALUES ($1, $2, $3, $4, TRUE)
        RETURNING *`,
       [
         String(fullName).trim(),
-        normalizedEmail,
+        normalizedUsername,
         await authService.hashPassword(temporaryPassword),
         role,
       ]

@@ -1,0 +1,99 @@
+# Render Blueprint — both halves of the system, deployed from this one file.
+#
+# Create it once with Render -> New -> Blueprint, pointed at this repository.
+# Everything below is version-controlled, so the deployment is reviewable in a
+# pull request rather than being a set of dashboard settings somebody has to
+# remember to reproduce.
+#
+# WHAT YOU STILL SET BY HAND (marked `sync: false` below): only the secrets that
+# come from somewhere else — the Supabase connection string, the Supabase
+# storage keys, and the OpenRouter key. Render prompts for those on first
+# deploy. The session signing key is NOT one of them; see JWT_SECRET.
+
+services:
+  # ---------------------------------------------------------------------------
+  # API
+  # ---------------------------------------------------------------------------
+  - type: web
+    name: mbzuai-reconciliation-api
+    runtime: node
+    rootDir: backend
+    # Not the free plan, deliberately: free instances sleep when idle, and a
+    # cold start on the first receipt upload of the fortnight is exactly the
+    # slow-start problem this system is meant to avoid.
+    plan: starter
+    buildCommand: npm ci
+    startCommand: node src/server.js
+    # Answers "is the process up" without touching the database, so a database
+    # blip surfaces as a request error rather than as Render restarting the
+    # server in a loop.
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_VERSION
+        value: "24"
+
+      # The session signing key. Render generates a random value on first
+      # deploy, stores it, and never shows it to anyone — including us. That is
+      # strictly better than pasting one in: a secret nobody has seen cannot be
+      # copied into a Slack message, a screenshot or a terminal history.
+      #
+      # It is generated ONCE and then kept across deploys. Changing it signs
+      # everyone out; it does not corrupt anything.
+      - key: JWT_SECRET
+        generateValue: true
+
+      - key: JWT_EXPIRES_IN
+        value: 12h
+
+      # Render's disk is ephemeral — anything written to it is gone on the next
+      # deploy — so production must never store receipts locally.
+      - key: STORAGE_DRIVER
+        value: s3
+
+      # Set once in the Render dashboard on first deploy. These come from
+      # Supabase and OpenRouter, so Render cannot invent them.
+      - key: DATABASE_URL
+        sync: false
+      - key: OPENROUTER_API_KEY
+        sync: false
+      - key: S3_BUCKET
+        sync: false
+      - key: S3_ENDPOINT
+        sync: false
+      - key: S3_REGION
+        sync: false
+      - key: S3_ACCESS_KEY_ID
+        sync: false
+      - key: S3_SECRET_ACCESS_KEY
+        sync: false
+
+  # ---------------------------------------------------------------------------
+  # Web interface
+  # ---------------------------------------------------------------------------
+  - type: web
+    name: mbzuai-reconciliation-web
+    runtime: static
+    rootDir: frontend
+    buildCommand: npm ci && npm run build
+    staticPublishPath: dist
+
+    routes:
+      # Forward /api to the API service. This is what keeps the browser talking
+      # to ONE origin, exactly as the Vite dev proxy does locally: the frontend
+      # calls a relative /api path in both environments, so there is no CORS to
+      # configure and no build-time API URL to get wrong.
+      #
+      # The destination is the API service above; a Render service is reachable
+      # at https://<its name>.onrender.com. If you rename that service, change
+      # this line to match.
+      - type: rewrite
+        source: /api/*
+        destination: https://mbzuai-reconciliation-api.onrender.com/api/*
+
+      # Single-page app fallback. React Router owns the URL, so a browser
+      # refresh on /manager/transactions must return index.html rather than a
+      # 404 for a file that was never built. MUST stay last — it matches
+      # everything.
+      - type: rewrite
+        source: /*
+        destination: /index.html

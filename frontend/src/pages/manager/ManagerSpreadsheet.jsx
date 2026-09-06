@@ -36,7 +36,7 @@ export default function ManagerPackage() {
     setGenerated(null);
     setError("");
     apiClient
-      .get("/spreadsheets/preview", { params: { cardholder_id: cardholderId, reconciliation_period_id: periodId } })
+      .get("/spreadsheets/preview", { params: { cardholderId: cardholderId, reconciliationPeriodId: periodId } })
       .then((r) => setPreview(r.data.preview))
       .catch(() => setPreview(null))
       .finally(() => setPreviewLoading(false));
@@ -47,8 +47,8 @@ export default function ManagerPackage() {
     setError("");
     try {
       const res = await apiClient.post("/spreadsheets/generate", {
-        cardholder_id: cardholderId,
-        reconciliation_period_id: periodId,
+        cardholderId: cardholderId,
+        reconciliationPeriodId: periodId,
       });
       setGenerated({ filename: res.data.filename, summary: res.data.summary });
       setPreview(null);
@@ -62,8 +62,8 @@ export default function ManagerPackage() {
   const selectClass =
     "w-full rounded-lg border border-mbzuai-navy/20 px-3 py-2.5 text-sm text-mbzuai-navy focus:border-mbzuai-gold focus:outline-none bg-white";
 
-  const selectedCardholder = cardholders.find((c) => String(c.cardholder_id) === cardholderId);
-  const selectedPeriod     = periods.find((p) => String(p.reconciliation_period_id) === periodId);
+  const selectedCardholder = cardholders.find((c) => String(c.cardholderId) === cardholderId);
+  const selectedPeriod     = periods.find((p) => String(p.reconciliationPeriodId) === periodId);
 
   return (
     <ManagerLayout>
@@ -82,8 +82,8 @@ export default function ManagerPackage() {
           <select value={cardholderId} onChange={(e) => setCardholderId(e.target.value)} className={selectClass}>
             <option value="">Select cardholder…</option>
             {cardholders.map((c) => (
-              <option key={c.cardholder_id} value={c.cardholder_id}>
-                {c.cardholder_name} (#{c.last_four_digits})
+              <option key={c.cardholderId} value={c.cardholderId}>
+                {c.cardholderName} (#{c.lastFourDigits})
               </option>
             ))}
           </select>
@@ -95,8 +95,8 @@ export default function ManagerPackage() {
           <select value={periodId} onChange={(e) => setPeriodId(e.target.value)} className={selectClass}>
             <option value="">Select period…</option>
             {periods.map((p) => (
-              <option key={p.reconciliation_period_id} value={p.reconciliation_period_id}>
-                {new Date(p.start_date).toLocaleDateString()} – {new Date(p.end_date).toLocaleDateString()}
+              <option key={p.reconciliationPeriodId} value={p.reconciliationPeriodId}>
+                {new Date(p.startDate).toLocaleDateString()} – {new Date(p.endDate).toLocaleDateString()}
               </option>
             ))}
           </select>
@@ -114,7 +114,7 @@ export default function ManagerPackage() {
           <div className="flex items-center gap-2 mb-4">
             <h2 className="text-lg font-semibold text-mbzuai-navy">Spreadsheet Preview</h2>
             <span className="text-xs bg-mbzuai-navy/10 text-mbzuai-navy px-2 py-0.5 rounded-full font-medium">
-              {selectedCardholder?.cardholder_name} · {new Date(selectedPeriod?.start_date).toLocaleDateString()} – {new Date(selectedPeriod?.end_date).toLocaleDateString()}
+              {selectedCardholder?.cardholderName} · {new Date(selectedPeriod?.startDate).toLocaleDateString()} – {new Date(selectedPeriod?.endDate).toLocaleDateString()}
             </span>
           </div>
 
@@ -136,7 +136,7 @@ export default function ManagerPackage() {
               <div className="mt-6 rounded-xl border border-mbzuai-navy/10 bg-mbzuai-sand/40 p-4 text-sm text-mbzuai-navy/70">
                 <strong className="text-mbzuai-navy">What happens when you generate:</strong>
                 <ul className="mt-1.5 list-disc list-inside space-y-0.5">
-                  <li>An Excel spreadsheet is created for {selectedCardholder?.cardholder_name} covering this period.</li>
+                  <li>An Excel spreadsheet is created for {selectedCardholder?.cardholderName} covering this period.</li>
                   <li>All {preview.totalCount} eligible transactions are included (already-packaged ones are regenerated).</li>
                   <li>The file is ready to download and upload to E-Services.</li>
                 </ul>

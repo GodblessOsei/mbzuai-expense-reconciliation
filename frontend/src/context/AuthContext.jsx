@@ -57,8 +57,8 @@ export function AuthProvider({ children }) {
   // the axios layer free of React concerns.
   useEffect(() => onAuthExpired(clearSession), []);
 
-  const login = async (email, password) => {
-    const res = await apiClient.post("/auth/login", { email, password });
+  const login = async (username, password) => {
+    const res = await apiClient.post("/auth/login", { username, password });
     applySession(res.data.token, res.data.user, res.data.assignedCard);
     return res.data.user;
   };

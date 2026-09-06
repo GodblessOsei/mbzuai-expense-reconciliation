@@ -27,9 +27,10 @@ const hashPassword = (plainText) => bcrypt.hash(plainText, SALT_ROUNDS);
 
 const verifyPassword = (plainText, hash) => bcrypt.compare(plainText, hash);
 
-// Emails are stored lowercase so "Jose@x.dev" and "jose@x.dev" cannot become
-// two accounts for the same person.
-const normalizeEmail = (email) => String(email || "").trim().toLowerCase();
+// Usernames are stored lowercase so "Jose" and "jose" cannot become two
+// accounts for the same person.
+const normalizeUsername = (username) =>
+  String(username || "").trim().toLowerCase();
 
 // The token carries identity only. Anything that decides access (role,
 // is_active) is re-read from the database on every request by requireAuth --
@@ -43,17 +44,17 @@ const verifyToken = (token) => jwt.verify(token, getSecret());
 const toPublicUser = (row) => ({
   userId: row.user_id,
   fullName: row.full_name,
-  email: row.email,
+  username: row.username,
   role: row.role,
   isActive: row.is_active,
   mustChangePassword: row.must_change_password,
   createdAt: row.created_at,
 });
 
-const findUserByEmail = async (email) => {
+const findUserByUsername = async (username) => {
   const result = await pool.query(
-    `SELECT * FROM users WHERE email = $1`,
-    [normalizeEmail(email)]
+    `SELECT * FROM users WHERE username = $1`,
+    [normalizeUsername(username)]
   );
   return result.rows[0] || null;
 };
@@ -94,23 +95,40 @@ const findAssignedCard = async (userId) => {
 //
 // Ambiguous characters (0/O, 1/l/I) are excluded because these get spoken
 // aloud or written on paper.
+const PASSWORD_ALPHABET =
+  "ABCDEFGHJKMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789";
+const PASSWORD_LENGTH = 12;
+
+// A byte is 0-255, which is not a whole number of alphabets (256 = 4 x 55 + 36).
+// Taking `byte % 55` would therefore hand out the first 36 characters 25% more
+// often than the rest, quietly shrinking the space an attacker has to search.
+// Bytes in that leftover tail are discarded and redrawn instead.
+const LARGEST_UNBIASED_BYTE =
+  Math.floor(256 / PASSWORD_ALPHABET.length) * PASSWORD_ALPHABET.length;
+
 const generateTemporaryPassword = () => {
-  const alphabet = "ABCDEFGHJKMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789";
-  const bytes = crypto.randomBytes(12);
-  return Array.from(bytes)
-    .map((byte) => alphabet[byte % alphabet.length])
-    .join("");
+  let password = "";
+
+  while (password.length < PASSWORD_LENGTH) {
+    for (const byte of crypto.randomBytes(PASSWORD_LENGTH)) {
+      if (byte >= LARGEST_UNBIASED_BYTE) continue; // would skew the result
+      password += PASSWORD_ALPHABET[byte % PASSWORD_ALPHABET.length];
+      if (password.length === PASSWORD_LENGTH) break;
+    }
+  }
+
+  return password;
 };
 
 module.exports = {
   hashPassword,
   verifyPassword,
   generateTemporaryPassword,
-  normalizeEmail,
+  normalizeUsername,
   signToken,
   verifyToken,
   toPublicUser,
-  findUserByEmail,
+  findUserByUsername,
   findUserById,
   findAssignedCard,
 };

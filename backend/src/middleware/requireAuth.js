@@ -43,7 +43,7 @@ const requireAuth = async (req, res, next) => {
     req.user = {
       userId: user.user_id,
       fullName: user.full_name,
-      email: user.email,
+      username: user.username,
       role: user.role,
       mustChangePassword: user.must_change_password,
     };

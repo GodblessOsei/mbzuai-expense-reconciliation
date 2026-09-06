@@ -14,7 +14,7 @@ export default function Login() {
   const navigate = useNavigate();
   const location = useLocation();
 
-  const [email, setEmail] = useState("");
+  const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -30,7 +30,7 @@ export default function Login() {
     setSubmitting(true);
 
     try {
-      const signedIn = await login(email, password);
+      const signedIn = await login(username, password);
 
       if (signedIn.mustChangePassword) {
         navigate("/change-password", { replace: true });
@@ -64,16 +64,16 @@ export default function Login() {
 
           <form onSubmit={handleSubmit} className="mt-8 flex flex-col gap-4">
             <div>
-              <label htmlFor="email" className="block text-sm font-medium text-mbzuai-navy/70 mb-1">
-                Email
+              <label htmlFor="username" className="block text-sm font-medium text-mbzuai-navy/70 mb-1">
+                Username
               </label>
               <input
-                id="email"
-                type="email"
+                id="username"
+                type="text"
                 autoComplete="username"
                 required
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
                 className={inputClass}
               />
             </div>

@@ -16,15 +16,15 @@ const todayDate = () => new Date().toISOString().split("T")[0];
 
 const emptyForm = {
   date: todayDate(),
-  vendor_name: "",
-  budget_item_id: "",
+  vendorName: "",
+  budgetItemId: "",
   department: "Residential Life",
   customDepartment: "",
   category: "",
   customCategory: "",
-  amount_aed: "",
-  payment_method: "RLA prepaid card",
-  reference_number: "",
+  amountAed: "",
+  paymentMethod: "RLA prepaid card",
+  referenceNumber: "",
   notes: "",
 };
 
@@ -76,7 +76,7 @@ export default function ManagerAdditionalSpending() {
     const department = form.department === "Other department" ? form.customDepartment.trim() : form.department;
     const category = form.category === "Other" ? form.customCategory.trim() : form.category;
 
-    if (!form.date || !form.vendor_name || !form.budget_item_id || !department || !category || !form.amount_aed || !form.payment_method) {
+    if (!form.date || !form.vendorName || !form.budgetItemId || !department || !category || !form.amountAed || !form.paymentMethod) {
       setError("Please fill in all required fields.");
       return;
     }
@@ -84,14 +84,14 @@ export default function ManagerAdditionalSpending() {
     setSaving(true);
     try {
       await apiClient.post("/additional-spending", {
-        budget_item_id: Number(form.budget_item_id),
+        budgetItemId: Number(form.budgetItemId),
         date: form.date,
-        vendor_name: form.vendor_name,
+        vendorName: form.vendorName,
         department,
         category,
-        amount_aed: Number(form.amount_aed),
-        payment_method: form.payment_method,
-        reference_number: form.reference_number || null,
+        amountAed: Number(form.amountAed),
+        paymentMethod: form.paymentMethod,
+        referenceNumber: form.referenceNumber || null,
         notes: form.notes || null,
       });
       setShowForm(false);
@@ -229,8 +229,8 @@ export default function ManagerAdditionalSpending() {
                   <input
                     type="text"
                     inputMode="decimal"
-                    name="amount_aed"
-                    value={form.amount_aed}
+                    name="amountAed"
+                    value={form.amountAed}
                     onChange={(e) => {
                       const next = e.target.value;
                       // digits, one optional point, at most 2 places — the
@@ -246,15 +246,15 @@ export default function ManagerAdditionalSpending() {
                 <div>
                   <label className={labelClass}>Vendor</label>
                   <input
-                    name="vendor_name"
-                    value={form.vendor_name}
+                    name="vendorName"
+                    value={form.vendorName}
                     onChange={handleChange}
                     className={inputClass}
                   />
                 </div>
                 <div>
                   <label className={labelClass}>Payment Method</label>
-                  <select name="payment_method" value={form.payment_method} onChange={handleChange} className={inputClass}>
+                  <select name="paymentMethod" value={form.paymentMethod} onChange={handleChange} className={inputClass}>
                     {PAYMENT_METHOD_OPTIONS.map((opt) => (
                       <option key={opt} value={opt}>{opt}</option>
                     ))}
@@ -272,10 +272,10 @@ export default function ManagerAdditionalSpending() {
                 </div>
                 <div>
                   <label className={labelClass}>Purchase For</label>
-                  <select name="budget_item_id" value={form.budget_item_id} onChange={handleChange} className={inputClass}>
+                  <select name="budgetItemId" value={form.budgetItemId} onChange={handleChange} className={inputClass}>
                     <option value="">Select purchase purpose</option>
                     {budgetItems.map((item) => (
-                      <option key={item.budget_item_id} value={item.budget_item_id}>{item.item_name}</option>
+                      <option key={item.budgetItemId} value={item.budgetItemId}>{item.itemName}</option>
                     ))}
                   </select>
                 </div>
@@ -315,8 +315,8 @@ export default function ManagerAdditionalSpending() {
                 <div>
                   <label className={labelClass}>Reference Number (optional)</label>
                   <input
-                    name="reference_number"
-                    value={form.reference_number}
+                    name="referenceNumber"
+                    value={form.referenceNumber}
                     onChange={handleChange}
                     className={inputClass}
                   />

@@ -1,6 +1,9 @@
 node_modules/
-.env
-.env.local
+# Every .env variant is secret EXCEPT the committed template. Matching only
+# `.env` and `.env.local` let files like `.env.backup` or `.env.production`
+# through, which is how credentials get committed by accident.
+.env*
+!.env.example
 dist/
 build/
 uploads/

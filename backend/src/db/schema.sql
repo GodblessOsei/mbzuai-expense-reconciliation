@@ -2,7 +2,7 @@
 CREATE TABLE users (
     user_id       SERIAL PRIMARY KEY,
     full_name     TEXT NOT NULL,
-    email         TEXT NOT NULL UNIQUE,   -- always stored lowercase
+    username      TEXT NOT NULL UNIQUE,   -- always stored lowercase
     password_hash TEXT NOT NULL,
     role          TEXT NOT NULL CHECK (role IN ('rla', 'manager')),
     must_change_password BOOLEAN NOT NULL DEFAULT TRUE,

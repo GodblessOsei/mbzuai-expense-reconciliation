@@ -14,39 +14,40 @@
 -- any setup. They are NOT for anything reachable from the internet. For a real
 -- deployment, seed nothing and create the first manager with:
 --
---     node src/db/manageAdmin.js create --email=... --name="..."
+--     node src/db/manageAdmin.js create --username=... --name="..."
 --
--- The email addresses below are local-development placeholders.
+-- The usernames below are local-development placeholders. They look like
+-- email addresses only for historical reasons; nothing sends mail.
 -- ---------------------------------------------------------------------------
 
 -- ---- People ---------------------------------------------------------------
 -- must_change_password is FALSE here purely so seeded logins go straight into
 -- the app. Accounts created through the manager UI always start TRUE.
 
-INSERT INTO users (full_name, email, password_hash, role, must_change_password)
+INSERT INTO users (full_name, username, password_hash, role, must_change_password)
 SELECT 'Neil Hammond', 'neil.hammond@example.dev',
        '$2b$10$kzqB/ZWhhj/Xirt9gjJA9OgHuC3FgjKow6wQrPTR6xapgNkXkoZ2i', 'manager', FALSE
-WHERE NOT EXISTS (SELECT 1 FROM users WHERE email = 'neil.hammond@example.dev');
+WHERE NOT EXISTS (SELECT 1 FROM users WHERE username = 'neil.hammond@example.dev');
 
-INSERT INTO users (full_name, email, password_hash, role, must_change_password)
+INSERT INTO users (full_name, username, password_hash, role, must_change_password)
 SELECT 'Jose', 'jose@example.dev',
        '$2b$10$kzqB/ZWhhj/Xirt9gjJA9OgHuC3FgjKow6wQrPTR6xapgNkXkoZ2i', 'rla', FALSE
-WHERE NOT EXISTS (SELECT 1 FROM users WHERE email = 'jose@example.dev');
+WHERE NOT EXISTS (SELECT 1 FROM users WHERE username = 'jose@example.dev');
 
-INSERT INTO users (full_name, email, password_hash, role, must_change_password)
+INSERT INTO users (full_name, username, password_hash, role, must_change_password)
 SELECT 'Xiwei', 'xiwei@example.dev',
        '$2b$10$kzqB/ZWhhj/Xirt9gjJA9OgHuC3FgjKow6wQrPTR6xapgNkXkoZ2i', 'rla', FALSE
-WHERE NOT EXISTS (SELECT 1 FROM users WHERE email = 'xiwei@example.dev');
+WHERE NOT EXISTS (SELECT 1 FROM users WHERE username = 'xiwei@example.dev');
 
-INSERT INTO users (full_name, email, password_hash, role, must_change_password)
+INSERT INTO users (full_name, username, password_hash, role, must_change_password)
 SELECT 'Hawau', 'hawau@example.dev',
        '$2b$10$kzqB/ZWhhj/Xirt9gjJA9OgHuC3FgjKow6wQrPTR6xapgNkXkoZ2i', 'rla', FALSE
-WHERE NOT EXISTS (SELECT 1 FROM users WHERE email = 'hawau@example.dev');
+WHERE NOT EXISTS (SELECT 1 FROM users WHERE username = 'hawau@example.dev');
 
-INSERT INTO users (full_name, email, password_hash, role, must_change_password)
+INSERT INTO users (full_name, username, password_hash, role, must_change_password)
 SELECT 'Seung', 'seung@example.dev',
        '$2b$10$kzqB/ZWhhj/Xirt9gjJA9OgHuC3FgjKow6wQrPTR6xapgNkXkoZ2i', 'rla', FALSE
-WHERE NOT EXISTS (SELECT 1 FROM users WHERE email = 'seung@example.dev');
+WHERE NOT EXISTS (SELECT 1 FROM users WHERE username = 'seung@example.dev');
 
 -- ---- Cards ----------------------------------------------------------------
 -- The four seeded prepaid cards, AED 5,000 limit each. Identified by their last
@@ -81,7 +82,7 @@ UPDATE cardholders c
        assigned_at      = COALESCE(c.assigned_at, DATE '2025-01-01')
   FROM users u
  WHERE c.assigned_user_id IS NULL
-   AND u.email = CASE c.last_four_digits
+   AND u.username = CASE c.last_four_digits
                    WHEN '8593' THEN 'jose@example.dev'
                    WHEN '6954' THEN 'xiwei@example.dev'
                    WHEN '4924' THEN 'hawau@example.dev'

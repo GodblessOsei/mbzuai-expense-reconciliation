@@ -65,7 +65,7 @@ export default function ManagerBudget() {
     setAnnualSaving(true);
     setAnnualMessage("");
     try {
-      await apiClient.post("/budgets", { year, planned_amount: Number(annualInput) });
+      await apiClient.post("/budgets", { year, plannedAmount: Number(annualInput) });
       setAnnualMessage("Annual budget saved.");
       loadAnnual();
     } catch (err) {
@@ -84,7 +84,7 @@ export default function ManagerBudget() {
     try {
       await apiClient.post(`/budgets/${year}/monthly`, {
         month: Number(monthInput),
-        planned_amount: Number(monthlyAmountInput),
+        plannedAmount: Number(monthlyAmountInput),
       });
       setMonthlyMessage(`Budget for ${MONTH_NAMES[monthInput - 1]} saved.`);
       setMonthlyAmountInput("");

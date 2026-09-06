@@ -37,7 +37,7 @@ export default function ManagerRlas() {
   const NEW_CARD = "new";
   const [form, setForm] = useState({
     fullName: "",
-    email: "",
+    username: "",
     cardSource: NEW_CARD,
     cardholderId: "",
     newCardLastFour: "",
@@ -53,7 +53,7 @@ export default function ManagerRlas() {
     loadCards();
   }, []);
 
-  const freeCards = cards.filter((c) => !c.assigned_user_id);
+  const freeCards = cards.filter((c) => !c.assignedUserId);
 
   const refreshAll = async () => {
     await Promise.all([reload(), loadCards()]);
@@ -66,7 +66,7 @@ export default function ManagerRlas() {
     // part-way cannot leave a cardless RLA behind.
     const created = await createUser({
       fullName: form.fullName,
-      email: form.email,
+      username: form.username,
       ...(form.cardSource === NEW_CARD
         ? { newCardLastFour: form.newCardLastFour }
         : { cardholderId: Number(form.cardSource) }),
@@ -75,7 +75,7 @@ export default function ManagerRlas() {
     if (created) {
       setForm({
         fullName: "",
-        email: "",
+        username: "",
         cardSource: NEW_CARD,
         cardholderId: "",
         newCardLastFour: "",
@@ -218,15 +218,15 @@ export default function ManagerRlas() {
               />
             </div>
             <div>
-              <label htmlFor="newEmail" className={labelClass}>
-                Email
+              <label htmlFor="newUsername" className={labelClass}>
+                Username
               </label>
               <input
-                id="newEmail"
-                type="email"
+                id="newUsername"
+                type="text"
                 required
-                value={form.email}
-                onChange={(e) => setForm({ ...form, email: e.target.value })}
+                value={form.username}
+                onChange={(e) => setForm({ ...form, username: e.target.value })}
                 className={inputClass}
               />
             </div>
@@ -244,8 +244,8 @@ export default function ManagerRlas() {
                     pool, so this option can never leave the manager stuck. */}
                 <option value={NEW_CARD}>A new card…</option>
                 {freeCards.map((c) => (
-                  <option key={c.cardholder_id} value={c.cardholder_id}>
-                    •••• {c.last_four_digits}
+                  <option key={c.cardholderId} value={c.cardholderId}>
+                    •••• {c.lastFourDigits}
                   </option>
                 ))}
               </select>
@@ -294,7 +294,7 @@ export default function ManagerRlas() {
             <thead>
               <tr className="text-xs uppercase tracking-wide text-mbzuai-navy/50 bg-mbzuai-sand/50">
                 <th className="px-5 py-3 font-medium">Name</th>
-                <th className="px-5 py-3 font-medium">Email</th>
+                <th className="px-5 py-3 font-medium">Username</th>
                 <th className="px-5 py-3 font-medium">Card</th>
                 <th className="px-5 py-3 font-medium">Status</th>
                 <th className="px-5 py-3 font-medium text-right">Actions</th>
@@ -324,7 +324,7 @@ export default function ManagerRlas() {
                     <td className="px-5 py-4 font-medium text-mbzuai-navy">
                       {rla.fullName}
                     </td>
-                    <td className="px-5 py-4 text-mbzuai-navy/70">{rla.email}</td>
+                    <td className="px-5 py-4 text-mbzuai-navy/70">{rla.username}</td>
                     <td className="px-5 py-4">
                       {!rla.isActive ? (
                         <span className="text-sm text-mbzuai-navy/50">
@@ -386,8 +386,8 @@ export default function ManagerRlas() {
                             <option value="">No card — assign one</option>
                           )}
                           {freeCards.map((c) => (
-                            <option key={c.cardholder_id} value={c.cardholder_id}>
-                              •••• {c.last_four_digits}
+                            <option key={c.cardholderId} value={c.cardholderId}>
+                              •••• {c.lastFourDigits}
                             </option>
                           ))}
                           <option value={NEW_CARD}>A new card…</option>

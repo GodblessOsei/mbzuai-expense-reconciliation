@@ -41,7 +41,7 @@ export default function ManagerPackageDownload() {
           // newest first — past periods are picked far more often than old ones
           .then((r) =>
             setPeriods(
-              [...r.data.periods].sort((a, b) => new Date(b.end_date) - new Date(a.end_date))
+              [...r.data.periods].sort((a, b) => new Date(b.endDate) - new Date(a.endDate))
             )
           )
           .catch(() => setError("Could not load reconciliation periods."))
@@ -60,8 +60,8 @@ export default function ManagerPackageDownload() {
     apiClient
       .get("/spreadsheets/preview", {
         params: {
-          cardholder_id: cardholderId,
-          reconciliation_period_id: periodId,
+          cardholderId: cardholderId,
+          reconciliationPeriodId: periodId,
         },
       })
       .then((r) => setPreview(r.data.preview))
@@ -80,8 +80,8 @@ export default function ManagerPackageDownload() {
         method: "POST",
         headers: { "Content-Type": "application/json", ...authHeaders() },
         body: JSON.stringify({
-          cardholder_id: Number(cardholderId),
-          reconciliation_period_id: Number(periodId),
+          cardholderId: Number(cardholderId),
+          reconciliationPeriodId: Number(periodId),
         }),
       });
 
@@ -109,8 +109,8 @@ export default function ManagerPackageDownload() {
     }
   };
 
-  const selected = cardholders.find((c) => String(c.cardholder_id) === cardholderId);
-  const selectedPeriod = periods.find((p) => String(p.reconciliation_period_id) === periodId);
+  const selected = cardholders.find((c) => String(c.cardholderId) === cardholderId);
+  const selectedPeriod = periods.find((p) => String(p.reconciliationPeriodId) === periodId);
   const isCurrentPeriod = periodId !== "" && Number(periodId) === currentPeriodId;
 
   const selectClass =
@@ -134,8 +134,8 @@ export default function ManagerPackageDownload() {
           <select value={cardholderId} onChange={(e) => { setCardholderId(e.target.value); setDone(false); }} className={selectClass}>
             <option value="">Select cardholder…</option>
             {cardholders.map((c) => (
-              <option key={c.cardholder_id} value={c.cardholder_id}>
-                {c.cardholder_name} (#{c.last_four_digits})
+              <option key={c.cardholderId} value={c.cardholderId}>
+                {c.cardholderName} (#{c.lastFourDigits})
               </option>
             ))}
           </select>
@@ -147,9 +147,9 @@ export default function ManagerPackageDownload() {
           <select value={periodId} onChange={(e) => { setPeriodId(e.target.value); setDone(false); }} className={selectClass}>
             <option value="">Select period…</option>
             {periods.map((p) => (
-              <option key={p.reconciliation_period_id} value={p.reconciliation_period_id}>
-                {fmtDate(p.start_date)} – {fmtDate(p.end_date)}
-                {p.reconciliation_period_id === currentPeriodId ? " (current)" : ""}
+              <option key={p.reconciliationPeriodId} value={p.reconciliationPeriodId}>
+                {fmtDate(p.startDate)} – {fmtDate(p.endDate)}
+                {p.reconciliationPeriodId === currentPeriodId ? " (current)" : ""}
               </option>
             ))}
           </select>
@@ -163,7 +163,7 @@ export default function ManagerPackageDownload() {
           <span className="text-sm text-mbzuai-navy font-medium">
             {isCurrentPeriod ? "Current period" : "Past period"}:&nbsp;
             <span className="font-semibold">
-              {fmtDate(selectedPeriod.start_date)} – {fmtDate(selectedPeriod.end_date)}
+              {fmtDate(selectedPeriod.startDate)} – {fmtDate(selectedPeriod.endDate)}
             </span>
           </span>
         </div>
@@ -177,9 +177,9 @@ export default function ManagerPackageDownload() {
       {preview && !done && (
         <div className="mt-8">
           <h2 className="text-base font-semibold text-mbzuai-navy mb-4">
-            Package contents — {selected?.cardholder_name}
+            Package contents — {selected?.cardholderName}
             <span className="font-normal text-mbzuai-navy/50">
-              {" · "}{fmtDate(selectedPeriod?.start_date)} – {fmtDate(selectedPeriod?.end_date)}
+              {" · "}{fmtDate(selectedPeriod?.startDate)} – {fmtDate(selectedPeriod?.endDate)}
             </span>
           </h2>
 

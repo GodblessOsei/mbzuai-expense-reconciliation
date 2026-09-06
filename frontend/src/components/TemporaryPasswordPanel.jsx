@@ -21,9 +21,9 @@ export default function TemporaryPasswordPanel({ issued, onDismiss }) {
       <div className="mt-4 flex flex-wrap items-center gap-6">
         <div>
           <p className="text-xs uppercase tracking-wide text-mbzuai-navy/50">
-            Email
+            Username
           </p>
-          <p className="font-mono text-mbzuai-navy">{issued.email}</p>
+          <p className="font-mono text-mbzuai-navy">{issued.username}</p>
         </div>
         <div>
           <p className="text-xs uppercase tracking-wide text-mbzuai-navy/50">

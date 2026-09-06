@@ -6,21 +6,21 @@ const MIN_PASSWORD_LENGTH = 8;
 // POST /api/auth/login
 const login = async (req, res) => {
   try {
-    const { email, password } = req.body;
+    const { username, password } = req.body;
 
-    if (!email || !password) {
+    if (!username || !password) {
       return res
         .status(400)
-        .json({ success: false, message: "Email and password are required" });
+        .json({ success: false, message: "Username and password are required" });
     }
 
-    const user = await authService.findUserByEmail(email);
+    const user = await authService.findUserByUsername(username);
 
     // One message for "no such account", "wrong password" and "deactivated".
-    // Distinguishing them tells an outsider which emails are real accounts.
+    // Distinguishing them tells an outsider which usernames are real accounts.
     const rejection = {
       success: false,
-      message: "Incorrect email or password",
+      message: "Incorrect username or password",
     };
 
     if (!user || !user.is_active) {

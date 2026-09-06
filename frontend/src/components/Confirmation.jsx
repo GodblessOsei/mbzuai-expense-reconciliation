@@ -6,14 +6,14 @@ export default function Confirmation({
   onHome,
 }) {
   const rows = [
-    ["Reference", `#${confirmation.transaction_id}`],
-    ["Vendor", confirmation.vendor_name],
-    ["Amount", `AED ${confirmation.amount_aed}`],
-    ["Invoice", confirmation.invoice_number],
-    ["Submitted", new Date(confirmation.submission_date).toLocaleString()],
+    ["Reference", `#${confirmation.transactionId}`],
+    ["Vendor", confirmation.vendorName],
+    ["Amount", `AED ${confirmation.amountAed}`],
+    ["Invoice", confirmation.invoiceNumber],
+    ["Submitted", new Date(confirmation.submissionDate).toLocaleString()],
     [
       "Reconciliation period",
-      confirmation.reconciliation_period_id ?? "Unassigned",
+      confirmation.reconciliationPeriodId ?? "Unassigned",
     ],
   ];
 

@@ -35,7 +35,7 @@ export default function SubmissionPage() {
     setStep("ocr");
     try {
       const res = await apiClient.post("/ocr/extract", {
-        filePaths: files.map((file) => file.file_path),
+        filePaths: files.map((file) => file.filePath),
         mode,
       });
       setExtractedData(res.data.consolidatedFields);

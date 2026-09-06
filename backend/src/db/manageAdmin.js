@@ -11,8 +11,8 @@
 // It requires shell access to the server, which is the access control.
 //
 // Usage:
-//   node src/db/manageAdmin.js create --email=neil@example.dev --name="Neil Hammond"
-//   node src/db/manageAdmin.js reset  --email=neil@example.dev
+//   node src/db/manageAdmin.js create --username=dylan --name="Dylan Maurer"
+//   node src/db/manageAdmin.js reset  --username=dylan
 //   node src/db/manageAdmin.js list
 require("dotenv").config();
 
@@ -27,9 +27,9 @@ const parseArgs = () =>
     return args;
   }, {});
 
-const printCredentials = (label, email, password) => {
+const printCredentials = (label, username, password) => {
   console.log(`\n${label}\n`);
-  console.log(`  Email:    ${email}`);
+  console.log(`  Username: ${username}`);
   console.log(`  Password: ${password}`);
   console.log(
     "\nThis password is shown ONCE — only its hash is stored. Hand it over"
@@ -38,11 +38,11 @@ const printCredentials = (label, email, password) => {
 };
 
 const create = async (args) => {
-  const { email, name, role = "manager" } = args;
+  const { username, name, role = "manager" } = args;
 
-  if (!email || !name) {
+  if (!username || !name) {
     console.error(
-      'Usage: node src/db/manageAdmin.js create --email=... --name="Full Name" [--role=manager|rla]'
+      'Usage: node src/db/manageAdmin.js create --username=... --name="Full Name" [--role=manager|rla]'
     );
     process.exitCode = 1;
     return;
@@ -54,11 +54,11 @@ const create = async (args) => {
     return;
   }
 
-  const normalizedEmail = authService.normalizeEmail(email);
+  const normalizedUsername = authService.normalizeUsername(username);
 
-  if (await authService.findUserByEmail(normalizedEmail)) {
+  if (await authService.findUserByUsername(normalizedUsername)) {
     console.error(
-      `A user with ${normalizedEmail} already exists. Use 'reset' to issue a new password.`
+      `A user with ${normalizedUsername} already exists. Use 'reset' to issue a new password.`
     );
     process.exitCode = 1;
     return;
@@ -67,28 +67,28 @@ const create = async (args) => {
   const password = authService.generateTemporaryPassword();
 
   await pool.query(
-    `INSERT INTO users (full_name, email, password_hash, role, must_change_password)
+    `INSERT INTO users (full_name, username, password_hash, role, must_change_password)
      VALUES ($1, $2, $3, $4, TRUE)`,
-    [name.trim(), normalizedEmail, await authService.hashPassword(password), role]
+    [name.trim(), normalizedUsername, await authService.hashPassword(password), role]
   );
 
-  printCredentials(`Created ${role}: ${name}`, normalizedEmail, password);
+  printCredentials(`Created ${role}: ${name}`, normalizedUsername, password);
 };
 
 const reset = async (args) => {
-  const { email } = args;
+  const { username } = args;
 
-  if (!email) {
-    console.error("Usage: node src/db/manageAdmin.js reset --email=...");
+  if (!username) {
+    console.error("Usage: node src/db/manageAdmin.js reset --username=...");
     process.exitCode = 1;
     return;
   }
 
-  const normalizedEmail = authService.normalizeEmail(email);
-  const user = await authService.findUserByEmail(normalizedEmail);
+  const normalizedUsername = authService.normalizeUsername(username);
+  const user = await authService.findUserByUsername(normalizedUsername);
 
   if (!user) {
-    console.error(`No user with email ${normalizedEmail}`);
+    console.error(`No user with username ${normalizedUsername}`);
     process.exitCode = 1;
     return;
   }
@@ -105,19 +105,19 @@ const reset = async (args) => {
     [await authService.hashPassword(password), user.user_id]
   );
 
-  printCredentials(`Reset password for ${user.full_name}`, normalizedEmail, password);
+  printCredentials(`Reset password for ${user.full_name}`, normalizedUsername, password);
 };
 
 const list = async () => {
   const { rows } = await pool.query(
-    `SELECT full_name, email, role, is_active FROM users
+    `SELECT full_name, username, role, is_active FROM users
       ORDER BY is_active DESC, role, full_name`
   );
 
   if (rows.length === 0) {
     console.log("\nNo users yet. Create the first manager with:\n");
     console.log(
-      '  node src/db/manageAdmin.js create --email=... --name="Full Name"\n'
+      '  node src/db/manageAdmin.js create --username=... --name="Full Name"\n'
     );
     return;
   }
@@ -126,7 +126,7 @@ const list = async () => {
   rows.forEach((row) => {
     const status = row.is_active ? "active  " : "disabled";
     console.log(
-      `  ${status}  ${row.role.padEnd(7)}  ${row.full_name.padEnd(24)}  ${row.email}`
+      `  ${status}  ${row.role.padEnd(7)}  ${row.full_name.padEnd(24)}  ${row.username}`
     );
   });
   console.log("");
@@ -143,9 +143,9 @@ const run = async () => {
     else {
       console.log("\nCommands:\n");
       console.log(
-        '  create --email=... --name="Full Name" [--role=manager|rla]'
+        '  create --username=... --name="Full Name" [--role=manager|rla]'
       );
-      console.log("  reset  --email=...");
+      console.log("  reset  --username=...");
       console.log("  list\n");
     }
   } catch (error) {

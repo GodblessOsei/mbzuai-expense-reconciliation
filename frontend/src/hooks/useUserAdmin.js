@@ -52,7 +52,7 @@ export function useUserAdmin(role) {
       const res = await apiClient.post("/users", { ...body, role });
       setIssued({
         name: res.data.user.fullName,
-        email: res.data.user.email,
+        username: res.data.user.username,
         password: res.data.temporaryPassword,
       });
       return res.data.user;
@@ -75,7 +75,7 @@ export function useUserAdmin(role) {
       const res = await apiClient.post(`/users/${target.userId}/reset-password`);
       setIssued({
         name: target.fullName,
-        email: target.email,
+        username: target.username,
         password: res.data.temporaryPassword,
       });
     }, "Could not reset that password");

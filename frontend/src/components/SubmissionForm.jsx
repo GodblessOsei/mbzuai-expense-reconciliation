@@ -147,29 +147,29 @@ export default function SubmissionForm({
       // fact, and it is the only accountability anchor now that cards are
       // shared.
       const res = await apiClient.post("/transactions/final-submit", {
-        cardholder_id: Number(cardholderId),
-        card_last_four: form.cardLastFour,
-        card_digits_not_shown: cardDigitsNotShown,
-        vendor_name: form.vendorName,
-        purchase_date: form.purchaseDate,
-        invoice_number: form.invoiceNumber,
+        cardholderId: Number(cardholderId),
+        cardLastFour: form.cardLastFour,
+        cardDigitsNotShown: cardDigitsNotShown,
+        vendorName: form.vendorName,
+        purchaseDate: form.purchaseDate,
+        invoiceNumber: form.invoiceNumber,
         category: form.category,
-        budget_item_id: form.budgetItemId,
+        budgetItemId: form.budgetItemId,
         department: form.department,
-        amount_aed: form.amountAed,
-        original_currency: form.currency,
-        payment_method: form.paymentMethod,
-        purchase_description: form.purchaseDescription,
-        is_split_payment: form.isSplitPayment,
-        total_payment_parts: form.totalPaymentParts,
-        payment_part_number: form.paymentPartNumber || null,
-        overall_order_total: form.overallOrderTotal,
+        amountAed: form.amountAed,
+        originalCurrency: form.currency,
+        paymentMethod: form.paymentMethod,
+        purchaseDescription: form.purchaseDescription,
+        isSplitPayment: form.isSplitPayment,
+        totalPaymentParts: form.totalPaymentParts,
+        paymentPartNumber: form.paymentPartNumber || null,
+        overallOrderTotal: form.overallOrderTotal,
         notes: form.notes,
-        receipt_file_ids: uploadedFiles.map((f) => f.receipt_file_id),
-        ocr_flags: managerFlags.map((f) => f.type), // types only -> DB rows
+        receiptFileIds: uploadedFiles.map((f) => f.receiptFileId),
+        ocrFlags: managerFlags.map((f) => f.type), // types only -> DB rows
       });
       setStatus(
-        `Transaction created (ID: ${res.data.confirmation.transaction_id})`
+        `Transaction created (ID: ${res.data.confirmation.transactionId})`
       );
       if (onSubmitted) onSubmitted(res.data.confirmation);
     } catch (err) {
@@ -225,9 +225,9 @@ export default function SubmissionForm({
         >
           <option value="">Select a card…</option>
           {cardholders.map((c) => (
-            <option key={c.cardholder_id} value={c.cardholder_id}>
-              {c.cardholder_name} •••• {c.last_four_digits}
-              {assignedCard && c.cardholder_id === assignedCard.cardholderId
+            <option key={c.cardholderId} value={c.cardholderId}>
+              {c.cardholderName} •••• {c.lastFourDigits}
+              {assignedCard && c.cardholderId === assignedCard.cardholderId
                 ? " (yours)"
                 : ""}
             </option>
@@ -428,8 +428,8 @@ export default function SubmissionForm({
             >
               <option value="">Select purchase purpose</option>
               {budgetItems.map((item) => (
-                <option key={item.budget_item_id} value={item.budget_item_id}>
-                  {item.item_name}
+                <option key={item.budgetItemId} value={item.budgetItemId}>
+                  {item.itemName}
                 </option>
               ))}
             </select>

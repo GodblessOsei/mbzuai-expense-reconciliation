@@ -34,7 +34,7 @@ export default function ManagerBudgetItems() {
     setAdding(true);
     setError("");
     try {
-      await apiClient.post("/budget-items", { item_name: newItemName.trim() });
+      await apiClient.post("/budget-items", { itemName: newItemName.trim() });
       setNewItemName("");
       loadItems();
     } catch (err) {
@@ -45,8 +45,8 @@ export default function ManagerBudgetItems() {
   };
 
   const startEditing = (item) => {
-    setEditingId(item.budget_item_id);
-    setEditingName(item.item_name);
+    setEditingId(item.budgetItemId);
+    setEditingName(item.itemName);
     setError("");
   };
 
@@ -60,7 +60,7 @@ export default function ManagerBudgetItems() {
     setSavingId(id);
     setError("");
     try {
-      await apiClient.patch(`/budget-items/${id}`, { item_name: editingName.trim() });
+      await apiClient.patch(`/budget-items/${id}`, { itemName: editingName.trim() });
       setEditingId(null);
       loadItems();
     } catch (err) {
@@ -71,10 +71,10 @@ export default function ManagerBudgetItems() {
   };
 
   const toggleActive = async (item) => {
-    setSavingId(item.budget_item_id);
+    setSavingId(item.budgetItemId);
     setError("");
     try {
-      await apiClient.patch(`/budget-items/${item.budget_item_id}`, { is_active: !item.is_active });
+      await apiClient.patch(`/budget-items/${item.budgetItemId}`, { isActive: !item.isActive });
       loadItems();
     } catch (err) {
       setError(err.response?.data?.message || "Failed to update item.");
@@ -136,10 +136,10 @@ export default function ManagerBudgetItems() {
               </tr>
             ) : (
               items.map((item) => {
-                const isEditing = editingId === item.budget_item_id;
-                const isSaving = savingId === item.budget_item_id;
+                const isEditing = editingId === item.budgetItemId;
+                const isSaving = savingId === item.budgetItemId;
                 return (
-                  <tr key={item.budget_item_id} className="border-t border-mbzuai-navy/5">
+                  <tr key={item.budgetItemId} className="border-t border-mbzuai-navy/5">
                     <td className="px-5 py-3">
                       {isEditing ? (
                         <input
@@ -149,18 +149,18 @@ export default function ManagerBudgetItems() {
                           autoFocus
                         />
                       ) : (
-                        <span className={`font-medium ${item.is_active ? "text-mbzuai-navy" : "text-mbzuai-navy/40"}`}>
-                          {item.item_name}
+                        <span className={`font-medium ${item.isActive ? "text-mbzuai-navy" : "text-mbzuai-navy/40"}`}>
+                          {item.itemName}
                         </span>
                       )}
                     </td>
                     <td className="px-5 py-3">
                       <span
                         className={`inline-block px-3 py-1 rounded-full text-xs font-medium ${
-                          item.is_active ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-500"
+                          item.isActive ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-500"
                         }`}
                       >
-                        {item.is_active ? "Active" : "Inactive"}
+                        {item.isActive ? "Active" : "Inactive"}
                       </span>
                     </td>
                     <td className="px-5 py-3 text-right">
@@ -173,7 +173,7 @@ export default function ManagerBudgetItems() {
                             Cancel
                           </button>
                           <button
-                            onClick={() => saveEditing(item.budget_item_id)}
+                            onClick={() => saveEditing(item.budgetItemId)}
                             disabled={isSaving}
                             className="text-sm font-medium text-mbzuai-navy hover:text-mbzuai-gold disabled:opacity-50"
                           >
@@ -193,7 +193,7 @@ export default function ManagerBudgetItems() {
                             disabled={isSaving}
                             className="text-sm text-mbzuai-navy underline hover:text-mbzuai-gold disabled:opacity-50"
                           >
-                            {isSaving ? "…" : item.is_active ? "Deactivate" : "Activate"}
+                            {isSaving ? "…" : item.isActive ? "Deactivate" : "Activate"}
                           </button>
                         </div>
                       )}

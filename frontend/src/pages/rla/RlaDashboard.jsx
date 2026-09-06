@@ -42,7 +42,7 @@ export default function RlaDashboard() {
       .then((res) => {
         const now = new Date();
         setNextDeadline(
-          res.data.periods.find((p) => new Date(p.end_date) >= now)
+          res.data.periods.find((p) => new Date(p.endDate) >= now)
         );
       })
       .catch((err) => console.error("Failed to load periods:", err));
@@ -52,20 +52,20 @@ export default function RlaDashboard() {
   const cardSpend = useMemo(
     () =>
       transactions
-        .filter((t) => t.on_my_card && t.is_active !== false)
-        .reduce((sum, t) => sum + Number(t.amount_aed || 0), 0),
+        .filter((t) => t.onMyCard && t.isActive !== false)
+        .reduce((sum, t) => sum + Number(t.amountAed || 0), 0),
     [transactions]
   );
 
   const visible = useMemo(() => {
-    if (filter === "mine") return transactions.filter((t) => t.submitted_by_me);
-    if (filter === "card") return transactions.filter((t) => t.on_my_card);
+    if (filter === "mine") return transactions.filter((t) => t.submittedByMe);
+    if (filter === "card") return transactions.filter((t) => t.onMyCard);
     return transactions;
   }, [transactions, filter]);
 
   // How many rows are NOT the ordinary "I submitted this on my own card" case.
   const borrowedCount = transactions.filter(
-    (t) => !t.submitted_by_me || !t.on_my_card
+    (t) => !t.submittedByMe || !t.onMyCard
   ).length;
 
   const statusBadge = (status) => {
@@ -111,7 +111,7 @@ export default function RlaDashboard() {
               <p className="mt-2 text-mbzuai-navy/70">
                 Next reconciliation deadline:{" "}
                 <strong className="text-mbzuai-navy">
-                  {new Date(nextDeadline.end_date).toLocaleDateString()}
+                  {new Date(nextDeadline.endDate).toLocaleDateString()}
                 </strong>
               </p>
             )}
@@ -208,35 +208,35 @@ export default function RlaDashboard() {
                 <tbody>
                   {visible.map((t) => (
                     <tr
-                      key={t.transaction_id}
+                      key={t.transactionId}
                       className="border-t border-mbzuai-navy/5 hover:bg-mbzuai-sand/30 transition-colors"
                     >
                       <td className="px-6 py-4 text-mbzuai-navy/70">
-                        #{t.transaction_id}
+                        #{t.transactionId}
                       </td>
                       <td className="px-6 py-4 text-mbzuai-navy/70">
-                        {new Date(t.purchase_date).toLocaleDateString()}
+                        {new Date(t.purchaseDate).toLocaleDateString()}
                       </td>
                       <td className="px-6 py-4 font-medium text-mbzuai-navy">
-                        {t.vendor_name}
+                        {t.vendorName}
                         {/* The unusual cases announce themselves rather than
                             hiding silently in the list. */}
-                        {!t.submitted_by_me && (
+                        {!t.submittedByMe && (
                           <span className="block text-xs font-normal text-mbzuai-navy/50">
-                            submitted by {t.submitted_by_name}
+                            submitted by {t.submittedByName}
                           </span>
                         )}
-                        {t.submitted_by_me && !t.on_my_card && (
+                        {t.submittedByMe && !t.onMyCard && (
                           <span className="block text-xs font-normal text-mbzuai-navy/50">
                             you submitted this on someone else’s card
                           </span>
                         )}
                       </td>
                       <td className="px-6 py-4 text-mbzuai-navy/70">
-                        {t.amount_aed}
+                        {t.amountAed}
                       </td>
                       <td className="px-6 py-4 text-mbzuai-navy/70">
-                        {t.last_four_digits ? `•••• ${t.last_four_digits}` : "—"}
+                        {t.lastFourDigits ? `•••• ${t.lastFourDigits}` : "—"}
                       </td>
                       <td className="px-6 py-4">
                         <span

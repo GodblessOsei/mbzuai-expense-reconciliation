@@ -11,7 +11,7 @@ export default function ManagerTransactions() {
   const [periodFilter, setPeriodFilter] = useState("");
   const [generatingId, setGeneratingId] = useState(null);
   const [selectedTransaction, setSelectedTransaction] = useState(null);
-  const isDeleted = selectedTransaction?.status === "deleted" || selectedTransaction?.is_active === false;
+  const isDeleted = selectedTransaction?.status === "deleted" || selectedTransaction?.isActive === false;
   const [modalFlags, setModalFlags] = useState([]);
   const [editFields, setEditFields] = useState({});
   const [saving, setSaving] = useState(false);
@@ -47,21 +47,21 @@ export default function ManagerTransactions() {
       setEditFields({});
       return;
     }
-    const { vendor_name, purchase_date, invoice_number, category, budget_item_id, department, amount_aed, original_currency, payment_method, notes } = selectedTransaction;
+    const { vendorName, purchaseDate, invoiceNumber, category, budgetItemId, department, amountAed, originalCurrency, paymentMethod, notes } = selectedTransaction;
     setEditFields({
-      vendor_name: vendor_name ?? "",
-      purchase_date: purchase_date ? purchase_date.split("T")[0] : "",
-      invoice_number: invoice_number ?? "",
+      vendorName: vendorName ?? "",
+      purchaseDate: purchaseDate ? purchaseDate.split("T")[0] : "",
+      invoiceNumber: invoiceNumber ?? "",
       category: category ?? "",
-      budget_item_id: budget_item_id ?? "",
+      budgetItemId: budgetItemId ?? "",
       department: department ?? "",
-      amount_aed: amount_aed ?? "",
-      original_currency: original_currency ?? "",
-      payment_method: payment_method ?? "",
+      amountAed: amountAed ?? "",
+      originalCurrency: originalCurrency ?? "",
+      paymentMethod: paymentMethod ?? "",
       notes: notes ?? "",
     });
     apiClient
-      .get(`/transactions/${selectedTransaction.transaction_id}/flags`)
+      .get(`/transactions/${selectedTransaction.transactionId}/flags`)
       .then((res) => setModalFlags(res.data.flags))
       .catch((err) => console.error("Failed to load flags:", err));
   }, [selectedTransaction]);
@@ -69,9 +69,9 @@ export default function ManagerTransactions() {
   // apply filters in the browser (client-side filtering)
   const filtered = transactions.filter((t) => {
     const matchCardholder =
-      !cardholderFilter || String(t.cardholder_id) === cardholderFilter;
+      !cardholderFilter || String(t.cardholderId) === cardholderFilter;
     const matchPeriod =
-      !periodFilter || String(t.reconciliation_period_id) === periodFilter;
+      !periodFilter || String(t.reconciliationPeriodId) === periodFilter;
     return matchCardholder && matchPeriod;
   });
 
@@ -79,10 +79,10 @@ export default function ManagerTransactions() {
     setGeneratingId(id);
     try {
       const res = await apiClient.post(`/transactions/${id}/generate-pdf`);
-      // update that transaction's pdf_path in state so the row switches to View/Download
+      // update that transaction's pdfPath in state so the row switches to View/Download
       setTransactions((prev) =>
         prev.map((t) =>
-          t.transaction_id === id ? { ...t, pdf_path: res.data.pdf_path } : t
+          t.transactionId === id ? { ...t, pdfPath: res.data.pdfPath } : t
         )
       );
     } catch (err) {
@@ -96,7 +96,7 @@ export default function ManagerTransactions() {
     setSaving(true);
     try {
       const res = await apiClient.patch(
-        `/transactions/${selectedTransaction.transaction_id}`,
+        `/transactions/${selectedTransaction.transactionId}`,
         editFields
       );
       const refreshed = await apiClient.get("/transactions");
@@ -116,8 +116,8 @@ export default function ManagerTransactions() {
   selectedTransaction &&
   Object.keys(editFields).some((key) => {
     const original =
-      key === "purchase_date"
-        ? (selectedTransaction.purchase_date?.split("T")[0] ?? "")
+      key === "purchaseDate"
+        ? (selectedTransaction.purchaseDate?.split("T")[0] ?? "")
         : (selectedTransaction[key] ?? "");
 
     return String(editFields[key] ?? "") !== String(original);
@@ -128,7 +128,7 @@ export default function ManagerTransactions() {
     try {
       const res = await apiClient.patch(`/flags/${flagId}/resolve`);
       setModalFlags((prev) =>
-        prev.map((f) => (f.flag_id === flagId ? res.data.flag : f))
+        prev.map((f) => (f.flagId === flagId ? res.data.flag : f))
       );
     } catch (err) {
       console.error("Resolve flag failed:", err);
@@ -141,12 +141,12 @@ export default function ManagerTransactions() {
     setMarkingReviewed(true);
     try {
       await apiClient.patch(
-        `/transactions/${selectedTransaction.transaction_id}/status`,
+        `/transactions/${selectedTransaction.transactionId}/status`,
         { status: "reviewed" }
       );
       setTransactions((prev) =>
         prev.map((t) =>
-          t.transaction_id === selectedTransaction.transaction_id
+          t.transactionId === selectedTransaction.transactionId
             ? { ...t, status: "reviewed" }
             : t
         )
@@ -170,14 +170,14 @@ export default function ManagerTransactions() {
 
     try {
       const res = await apiClient.patch(
-        `/transactions/${selectedTransaction.transaction_id}/delete`
+        `/transactions/${selectedTransaction.transactionId}/delete`
       );
 
       const deletedTransaction = res.data.transaction;
 
       setTransactions((prev) =>
         prev.map((t) =>
-          t.transaction_id === deletedTransaction.transaction_id
+          t.transactionId === deletedTransaction.transactionId
             ? deletedTransaction
             : t
         )
@@ -202,10 +202,10 @@ export default function ManagerTransactions() {
       setLoadingAuditLogs(true);
 
       const res = await apiClient.get(
-        `/transactions/${selectedTransaction.transaction_id}/audit-logs`
+        `/transactions/${selectedTransaction.transactionId}/audit-logs`
       );
 
-      setAuditLogs(res.data.audit_logs);
+      setAuditLogs(res.data.auditLogs);
       setShowAuditLogs(true);
     } catch (err) {
       console.error("Failed to fetch audit logs:", err);
@@ -247,8 +247,8 @@ export default function ManagerTransactions() {
         >
           <option value="">All cardholders</option>
           {cardholders.map((c) => (
-            <option key={c.cardholder_id} value={c.cardholder_id}>
-              {c.cardholder_name}
+            <option key={c.cardholderId} value={c.cardholderId}>
+              {c.cardholderName}
             </option>
           ))}
         </select>
@@ -261,11 +261,11 @@ export default function ManagerTransactions() {
           <option value="">All periods</option>
           {periods.map((p) => (
             <option
-              key={p.reconciliation_period_id}
-              value={p.reconciliation_period_id}
+              key={p.reconciliationPeriodId}
+              value={p.reconciliationPeriodId}
             >
-              {new Date(p.start_date).toLocaleDateString()} –{" "}
-              {new Date(p.end_date).toLocaleDateString()}
+              {new Date(p.startDate).toLocaleDateString()} –{" "}
+              {new Date(p.endDate).toLocaleDateString()}
             </option>
           ))}
         </select>
@@ -304,7 +304,7 @@ export default function ManagerTransactions() {
             ) : (
               filtered.map((t) => (
                 <tr
-                  key={t.transaction_id}
+                  key={t.transactionId}
                   onClick={() => {
                     setAuditLogs([]);
                     setShowAuditLogs(false);
@@ -313,19 +313,19 @@ export default function ManagerTransactions() {
                   className="border-t border-mbzuai-navy/5 hover:bg-mbzuai-sand/30 transition-colors"
                 >
                   <td className="px-5 py-4 text-mbzuai-navy/70 whitespace-nowrap">
-                    #{t.transaction_id}
+                    #{t.transactionId}
                   </td>
                   <td className="px-5 py-4 font-medium text-mbzuai-navy whitespace-nowrap">
-                    {t.cardholder_name}
+                    {t.cardholderName}
                   </td>
                   <td className="px-5 py-4 text-mbzuai-navy/70">
-                    {t.vendor_name}
+                    {t.vendorName}
                   </td>
                   <td className="px-5 py-4 text-mbzuai-navy/70">
-                    {t.budget_item_name || "—"}
+                    {t.budgetItemName || "—"}
                   </td>
                   <td className="px-5 py-4 text-mbzuai-navy/70 whitespace-nowrap">
-                    AED {t.amount_aed}
+                    AED {t.amountAed}
                   </td>
                   <td className="px-5 py-4">
                     <span
@@ -337,7 +337,7 @@ export default function ManagerTransactions() {
                     </span>
                   </td>
                   <td className="px-5 py-4 whitespace-nowrap">
-                    {t.pdf_path ? (
+                    {t.pdfPath ? (
                       <div className="flex gap-3 text-sm">
                         {/* These were plain <a href> links. A browser
                             navigating to a URL sends no Authorization header,
@@ -348,7 +348,7 @@ export default function ManagerTransactions() {
                           onClick={(e) => {
                             e.stopPropagation();
                             openAuthedFile(
-                              `/transactions/${t.transaction_id}/pdf`
+                              `/transactions/${t.transactionId}/pdf`
                             ).catch((err) => alert(err.message));
                           }}
                           className="text-mbzuai-navy underline hover:text-mbzuai-gold"
@@ -360,8 +360,8 @@ export default function ManagerTransactions() {
                           onClick={(e) => {
                             e.stopPropagation();
                             downloadAuthedFile(
-                              `/transactions/${t.transaction_id}/pdf?download=true`,
-                              `transaction-${t.transaction_id}.pdf`
+                              `/transactions/${t.transactionId}/pdf?download=true`,
+                              `transaction-${t.transactionId}.pdf`
                             ).catch((err) => alert(err.message));
                           }}
                           className="text-mbzuai-navy underline hover:text-mbzuai-gold"
@@ -371,11 +371,11 @@ export default function ManagerTransactions() {
                       </div>
                     ) : (
                       <button
-                        onClick={(e) => { e.stopPropagation(); handleGenerate(t.transaction_id); }}
-                        disabled={generatingId === t.transaction_id}
+                        onClick={(e) => { e.stopPropagation(); handleGenerate(t.transactionId); }}
+                        disabled={generatingId === t.transactionId}
                         className="text-sm text-mbzuai-navy underline hover:text-mbzuai-gold disabled:opacity-50"
                       >
-                        {generatingId === t.transaction_id
+                        {generatingId === t.transactionId
                           ? "Generating…"
                           : "Generate PDF"}
                       </button>
@@ -402,14 +402,14 @@ export default function ManagerTransactions() {
             <div className="px-6 py-4 border-b border-mbzuai-navy/10 flex items-start justify-between">
               <div>
                 <p className="text-mbzuai-gold font-medium tracking-wide uppercase text-xs">
-                  Transaction #{selectedTransaction.transaction_id}
+                  Transaction #{selectedTransaction.transactionId}
                 </p>
                 <h2 className="text-xl font-semibold text-mbzuai-navy mt-0.5">
-                  {selectedTransaction.vendor_name}
+                  {selectedTransaction.vendorName}
                 </h2>
                 <p className="text-sm text-mbzuai-navy/50 mt-0.5">
-                  {selectedTransaction.cardholder_name} &middot; submitted{" "}
-                  {new Date(selectedTransaction.submission_date).toLocaleDateString()}
+                  {selectedTransaction.cardholderName} &middot; submitted{" "}
+                  {new Date(selectedTransaction.submissionDate).toLocaleDateString()}
                 </p>
               </div>
               <div className="flex items-center gap-3">
@@ -432,14 +432,14 @@ export default function ManagerTransactions() {
               </h3>
               <div className="grid grid-cols-2 gap-4">
                 {[
-                  { label: "Vendor", key: "vendor_name" },
-                  { label: "Invoice #", key: "invoice_number" },
-                  { label: "Purchase Date", key: "purchase_date", type: "date" },
-                  { label: "Amount (AED)", key: "amount_aed", type: "number" },
-                  { label: "Currency", key: "original_currency" },
-                  { label: "Payment Method", key: "payment_method" },
+                  { label: "Vendor", key: "vendorName" },
+                  { label: "Invoice #", key: "invoiceNumber" },
+                  { label: "Purchase Date", key: "purchaseDate", type: "date" },
+                  { label: "Amount (AED)", key: "amountAed", type: "number" },
+                  { label: "Currency", key: "originalCurrency" },
+                  { label: "Payment Method", key: "paymentMethod" },
                   { label: "Category", key: "category" },
-                  { label: "Purchase For", key: "budget_item_id", type: "budgetItem"},
+                  { label: "Purchase For", key: "budgetItemId", type: "budgetItem"},
                   { label: "Department", key: "department" },
                 ].map(({ label, key, type = "text" }) => (
                   <div key={key}>
@@ -458,8 +458,8 @@ export default function ManagerTransactions() {
                       >
                         <option value="">Select purchase purpose</option>
                         {budgetItems.map((item) => (
-                          <option key={item.budget_item_id} value={item.budget_item_id}>
-                            {item.item_name}
+                          <option key={item.budgetItemId} value={item.budgetItemId}>
+                            {item.itemName}
                           </option>
                         ))}
                       </select>
@@ -503,12 +503,12 @@ export default function ManagerTransactions() {
                 <ul className="space-y-2">
                   {modalFlags.map((flag) => (
                     <li
-                      key={flag.flag_id}
+                      key={flag.flagId}
                       className="flex items-center justify-between rounded-lg border border-mbzuai-navy/10 px-4 py-2"
                     >
                       <div>
                         <span className="text-sm font-medium text-mbzuai-navy">
-                          {flag.flag_type.replace(/_/g, " ")}
+                          {flag.flagType.replace(/_/g, " ")}
                         </span>
                         <span className={`ml-2 text-xs ${flag.resolved ? "text-green-600" : "text-amber-600"}`}>
                           {flag.resolved ? "resolved" : "unresolved"}
@@ -516,11 +516,11 @@ export default function ManagerTransactions() {
                       </div>
                       {!flag.resolved && (
                         <button
-                          onClick={() => handleResolveFlag(flag.flag_id)}
-                          disabled={resolvingFlagId === flag.flag_id}
+                          onClick={() => handleResolveFlag(flag.flagId)}
+                          disabled={resolvingFlagId === flag.flagId}
                           className="text-xs text-mbzuai-navy underline hover:text-mbzuai-gold disabled:opacity-50"
                         >
-                          {resolvingFlagId === flag.flag_id ? "Resolving…" : "Resolve"}
+                          {resolvingFlagId === flag.flagId ? "Resolving…" : "Resolve"}
                         </button>
                       )}
                     </li>
@@ -546,15 +546,15 @@ export default function ManagerTransactions() {
                   ) : (
                     auditLogs.map((log) => (
                       <div
-                        key={log.log_id}
+                        key={log.logId}
                         className="border-b border-mbzuai-navy/10 pb-3 last:border-b-0"
                       >
                         <p className="font-medium text-sm">
-                          {log.field_name}
+                          {log.fieldName}
                         </p>
 
                         <p className="text-sm text-mbzuai-navy/70">
-                          {String(log.old_value ?? "—")} → {String(log.new_value ?? "—")}
+                          {String(log.oldValue ?? "—")} → {String(log.newValue ?? "—")}
                         </p>
 
                         <p className="text-xs text-mbzuai-navy/50">

@@ -5,6 +5,8 @@ const app = express();
 
 const requireAuth = require("./middleware/requireAuth");
 const requireRole = require("./middleware/requireRole");
+const camelCaseResponse = require("./middleware/camelCaseResponse");
+const normalizeRequestBody = require("./middleware/normalizeRequestBody");
 
 const authRoutes = require("./routes/authRoutes");
 const userRoutes = require("./routes/userRoutes");
@@ -21,24 +23,31 @@ const additionalSpendingRoutes = require("./routes/additionalSpendingRoutes");
 const budgetRoutes = require("./routes/budgetRoutes");
 const dashboardRoutes = require("./routes/dashboardRoutes");
 
-// Comma-separated exact origins, e.g. "https://mbzuai-recon.vercel.app".
+// Comma-separated exact origins, e.g. "https://mbzuai-reconciliation-web.onrender.com".
 // Defaults to the Vite dev server so local work needs no env var.
+//
+// In the deployed setup this list is usually EMPTY and that is correct: the
+// Render static site rewrites /api to this service (see render.yaml), so the
+// browser only ever talks to one origin and CORS never enters the picture.
+// It stays configured for the case where the frontend is pointed straight at
+// this API instead — another host, a mobile client, or a local frontend run
+// against the deployed backend.
 const ALLOWED_ORIGINS = (process.env.CORS_ORIGINS || "http://localhost:5173")
   .split(",")
   .map((o) => o.trim())
   .filter(Boolean);
 
-// Vercel gives every branch deploy its own hostname, so previews can't be
-// listed by hand. Opt in with CORS_ALLOW_VERCEL_PREVIEWS=true.
-const VERCEL_PREVIEW = /^https:\/\/[a-z0-9-]+\.vercel\.app$/;
-const allowPreviews = process.env.CORS_ALLOW_VERCEL_PREVIEWS === "true";
+// Render gives every pull-request preview its own hostname, so previews cannot
+// be listed by hand. Opt in with CORS_ALLOW_RENDER_PREVIEWS=true.
+const RENDER_PREVIEW = /^https:\/\/[a-z0-9-]+\.onrender\.com$/;
+const allowPreviews = process.env.CORS_ALLOW_RENDER_PREVIEWS === "true";
 
 const isAllowedOrigin = (origin) => {
   // No Origin header at all: curl, health checks, server-to-server. These are
   // not browser requests, so CORS has no say over them.
   if (!origin) return true;
   if (ALLOWED_ORIGINS.includes(origin)) return true;
-  return allowPreviews && VERCEL_PREVIEW.test(origin);
+  return allowPreviews && RENDER_PREVIEW.test(origin);
 };
 
 app.use(
@@ -57,6 +66,12 @@ app.use(
   })
 );
 app.use(express.json());
+
+// The API speaks camelCase; Postgres speaks snake_case. Translating here rather
+// than in each controller is what keeps it consistent -- see the middleware for
+// why, and note it renames keys without deciding which keys exist.
+app.use(camelCaseResponse);
+app.use(normalizeRequestBody);
 
 // ---- Public --------------------------------------------------------------
 // Signing in is the one door into the system, so it cannot sit behind the

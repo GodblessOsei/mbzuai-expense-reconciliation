@@ -26,13 +26,13 @@ export default function ManagerManagers() {
   } = useUserAdmin("manager");
 
   const [showForm, setShowForm] = useState(false);
-  const [form, setForm] = useState({ fullName: "", email: "" });
+  const [form, setForm] = useState({ fullName: "", username: "" });
 
   const handleCreate = async (event) => {
     event.preventDefault();
     const created = await createUser(form);
     if (created) {
-      setForm({ fullName: "", email: "" });
+      setForm({ fullName: "", username: "" });
       setShowForm(false);
     }
   };
@@ -117,15 +117,15 @@ export default function ManagerManagers() {
               />
             </div>
             <div>
-              <label htmlFor="newEmail" className={labelClass}>
-                Email
+              <label htmlFor="newUsername" className={labelClass}>
+                Username
               </label>
               <input
-                id="newEmail"
-                type="email"
+                id="newUsername"
+                type="text"
                 required
-                value={form.email}
-                onChange={(e) => setForm({ ...form, email: e.target.value })}
+                value={form.username}
+                onChange={(e) => setForm({ ...form, username: e.target.value })}
                 className={inputClass}
               />
             </div>
@@ -145,7 +145,7 @@ export default function ManagerManagers() {
             <thead>
               <tr className="text-xs uppercase tracking-wide text-mbzuai-navy/50 bg-mbzuai-sand/50">
                 <th className="px-5 py-3 font-medium">Name</th>
-                <th className="px-5 py-3 font-medium">Email</th>
+                <th className="px-5 py-3 font-medium">Username</th>
                 <th className="px-5 py-3 font-medium">Status</th>
                 <th className="px-5 py-3 font-medium text-right">Actions</th>
               </tr>
@@ -175,7 +175,7 @@ export default function ManagerManagers() {
                           </span>
                         )}
                       </td>
-                      <td className="px-5 py-4 text-mbzuai-navy/70">{m.email}</td>
+                      <td className="px-5 py-4 text-mbzuai-navy/70">{m.username}</td>
                       <td className="px-5 py-4">
                         <span
                           className={`inline-block px-3 py-1 rounded-full text-xs font-medium ${
