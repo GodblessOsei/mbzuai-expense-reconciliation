@@ -18,10 +18,14 @@ services:
     name: mbzuai-reconciliation-api
     runtime: node
     rootDir: backend
-    # Not the free plan, deliberately: free instances sleep when idle, and a
-    # cold start on the first receipt upload of the fortnight is exactly the
-    # slow-start problem this system is meant to avoid.
-    plan: starter
+    # Not `free`, deliberately: free instances sleep when idle, and a cold start
+    # on the first receipt upload of the fortnight is exactly the slow-start
+    # problem this system is meant to avoid.
+    #
+    # Render names plans after the instance size, not "starter"/"standard" --
+    # 0.5c-512mb is the smallest paid one. `free` is the only other value that
+    # makes sense here; anything larger is wasted on four cardholders.
+    plan: free
     buildCommand: npm ci
     startCommand: node src/server.js
     # Answers "is the process up" without touching the database, so a database
@@ -73,9 +77,14 @@ services:
   - type: web
     name: mbzuai-reconciliation-web
     runtime: static
-    rootDir: frontend
-    buildCommand: npm ci && npm run build
-    staticPublishPath: dist
+    # No rootDir here: it is a build-configuration field and a static site does
+    # not accept it. Change directory in the build command instead, and publish
+    # from a path relative to the REPOSITORY root.
+    buildCommand: cd frontend && npm ci && npm run build
+    staticPublishPath: frontend/dist
+    envVars:
+      - key: NODE_VERSION
+        value: "24"
 
     routes:
       # Forward /api to the API service. This is what keeps the browser talking
